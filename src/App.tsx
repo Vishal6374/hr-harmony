@@ -10,7 +10,7 @@ import Departments from "./pages/Departments";
 import Designations from "./pages/Designations";
 import Employees from "./pages/Employees";
 import Attendance from "./pages/Attendance";
-import Payroll from "./pages/Payroll";
+import PayrollUnified from "./pages/PayrollUnified";
 import Leaves from "./pages/Leaves";
 import Reimbursements from "./pages/Reimbursements";
 import Complaints from "./pages/Complaints";
@@ -24,22 +24,22 @@ const queryClient = new QueryClient();
 // Protected Route Wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
-  
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  
+
   return <>{children}</>;
 }
 
 // Public Route Wrapper (redirects to dashboard if already logged in)
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
-  
+
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
   }
-  
+
   return <>{children}</>;
 }
 
@@ -48,7 +48,7 @@ function AppRoutes() {
     <Routes>
       {/* Public Routes */}
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-      
+
       {/* Protected Routes */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -56,14 +56,14 @@ function AppRoutes() {
       <Route path="/designations" element={<ProtectedRoute><Designations /></ProtectedRoute>} />
       <Route path="/employees" element={<ProtectedRoute><Employees /></ProtectedRoute>} />
       <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
-      <Route path="/payroll" element={<ProtectedRoute><Payroll /></ProtectedRoute>} />
+      <Route path="/payroll" element={<ProtectedRoute><PayrollUnified /></ProtectedRoute>} />
       <Route path="/leaves" element={<ProtectedRoute><Leaves /></ProtectedRoute>} />
       <Route path="/reimbursements" element={<ProtectedRoute><Reimbursements /></ProtectedRoute>} />
       <Route path="/complaints" element={<ProtectedRoute><Complaints /></ProtectedRoute>} />
       <Route path="/policies" element={<ProtectedRoute><Policies /></ProtectedRoute>} />
       <Route path="/holidays" element={<ProtectedRoute><Holidays /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-      
+
       {/* Catch-all */}
       <Route path="*" element={<NotFound />} />
     </Routes>

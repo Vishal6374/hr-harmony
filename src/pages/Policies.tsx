@@ -1,204 +1,243 @@
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader } from '@/components/ui/page-header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DataTable, Column } from '@/components/ui/data-table';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { StatusBadge } from '@/components/ui/status-badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { policies } from '@/data/mockData';
-import { Policy } from '@/types/hrms';
-import { useAuth } from '@/contexts/AuthContext';
-import { Plus, FileText, Download, Eye, Upload, Search, CheckCircle2, FolderOpen } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Plus, Search, FileText, Eye, Download, Pencil, Trash2, Loader2, Link as LinkIcon } from 'lucide-react';
 import { format } from 'date-fns';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { policyService } from '@/services/apiService';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 export default function Policies() {
   const { isHR } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
-
-  const categories = [...new Set(policies.map((p) => p.category))];
-
-  const filteredPolicies = policies.filter((p) => {
-    const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
-    return matchesSearch && matchesCategory;
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedPolicy, setSelectedPolicy] = useState<any>(null);
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    category: 'General',
+    version: '1.0',
+    effective_date: new Date().toISOString().split('T')[0],
+    document_url: '',
+    is_active: true
   });
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'General':
-        return '📋';
-      case 'HR':
-        return '👥';
-      case 'Operations':
-        return '⚙️';
-      case 'Ethics':
-        return '⚖️';
-      case 'IT':
-        return '💻';
-      default:
-        return '📄';
+  const queryClient = useQueryClient();
+
+  // Fetch Policies
+  const { data: policies = [], isLoading } = useQuery({
+    queryKey: ['policies', categoryFilter],
+    queryFn: async () => {
+      const { data } = await policyService.getAll({
+        category: categoryFilter !== 'all' ? categoryFilter : undefined,
+      });
+      return data;
+    },
+  });
+
+  // Mutations
+  const createMutation = useMutation({
+    mutationFn: policyService.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['policies'] });
+      setIsDialogOpen(false);
+      toast.success('Policy created successfully');
+      resetForm();
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to create policy'),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: any) => policyService.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['policies'] });
+      setIsDialogOpen(false);
+      toast.success('Policy updated successfully');
+      resetForm();
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to update policy'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: policyService.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['policies'] });
+      toast.success('Policy deleted successfully');
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to delete policy'),
+  });
+
+  const resetForm = () => {
+    setSelectedPolicy(null);
+    setFormData({
+      title: '',
+      description: '',
+      category: 'General',
+      version: '1.0',
+      effective_date: new Date().toISOString().split('T')[0],
+      document_url: '',
+      is_active: true
+    });
+  };
+
+  const openCreateDialog = () => {
+    resetForm();
+    setIsDialogOpen(true);
+  };
+
+  const openEditDialog = (policy: any) => {
+    setSelectedPolicy(policy);
+    setFormData({
+      title: policy.title,
+      description: policy.description || '',
+      category: policy.category,
+      version: policy.version,
+      effective_date: policy.effective_date.split('T')[0],
+      document_url: policy.document_url || '',
+      is_active: policy.is_active,
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm('Are you sure you want to delete this policy?')) {
+      deleteMutation.mutate(id);
     }
   };
 
-  const handleUploadPolicy = () => {
-    console.log('Uploading policy...');
-    setIsUploadDialogOpen(false);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedPolicy) {
+      updateMutation.mutate({ id: selectedPolicy.id, data: formData });
+    } else {
+      createMutation.mutate(formData);
+    }
   };
+
+  const filteredPolicies = policies.filter((policy: any) =>
+    policy.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const columns: Column<any>[] = [
+    {
+      key: 'title',
+      header: 'Policy',
+      cell: (policy) => (
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <FileText className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <p className="font-medium">{policy.title}</p>
+            <p className="text-xs text-muted-foreground">Version {policy.version}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'category',
+      header: 'Category',
+      cell: (policy) => <span className="text-sm">{policy.category}</span>,
+    },
+    {
+      key: 'effective_date',
+      header: 'Effective Date',
+      cell: (policy) => {
+        if (!policy.effective_date) return <span className="text-sm text-muted-foreground">-</span>;
+        try {
+          return (
+            <span className="text-sm text-muted-foreground">
+              {format(new Date(policy.effective_date), 'MMM d, yyyy')}
+            </span>
+          );
+        } catch {
+          return <span className="text-sm text-muted-foreground">-</span>;
+        }
+      },
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      cell: (policy) => <StatusBadge status={policy.is_active ? 'active' : 'inactive'} />,
+    },
+    {
+      key: 'actions',
+      header: '',
+      cell: (policy) => (
+        <div className="flex items-center gap-1">
+          {policy.document_url && (
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(policy.document_url, '_blank')}>
+              <Download className="w-4 h-4" />
+            </Button>
+          )}
+          {isHR && (
+            <>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(policy)}>
+                <Pencil className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-destructive hover:text-destructive"
+                onClick={() => handleDelete(policy.id)}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </>
+          )}
+        </div>
+      ),
+      className: 'w-[120px]',
+    },
+  ];
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
       <div className="space-y-6 animate-fade-in">
-        <PageHeader
-          title="Policies"
-          description={isHR ? 'Manage company policies and documents' : 'View company policies'}
-        >
+        <PageHeader title="Company Policies" description="View and manage company policies">
           {isHR && (
-            <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Upload Policy
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Upload New Policy</DialogTitle>
-                  <DialogDescription>
-                    Add a new policy document for employees
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label>Policy Title</Label>
-                    <Input placeholder="e.g., Employee Handbook 2026" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Category</Label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="General">General</SelectItem>
-                          <SelectItem value="HR">HR</SelectItem>
-                          <SelectItem value="Operations">Operations</SelectItem>
-                          <SelectItem value="Ethics">Ethics</SelectItem>
-                          <SelectItem value="IT">IT</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Version</Label>
-                      <Input placeholder="e.g., 1.0" />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Effective Date</Label>
-                    <Input type="date" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Document</Label>
-                    <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer">
-                      <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">
-                        Click to upload or drag and drop
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        PDF files only, up to 10MB
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleUploadPolicy}>Upload Policy</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <Button onClick={openCreateDialog}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Policy
+            </Button>
           )}
         </PageHeader>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{policies.length}</p>
-                  <p className="text-xs text-muted-foreground">Total Policies</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
-                  <CheckCircle2 className="w-5 h-5 text-success" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{policies.filter((p) => p.isActive).length}</p>
-                  <p className="text-xs text-muted-foreground">Active</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-info/10 flex items-center justify-center">
-                  <FolderOpen className="w-5 h-5 text-info" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{categories.length}</p>
-                  <p className="text-xs text-muted-foreground">Categories</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-warning" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">
-                    {policies.filter((p) => new Date(p.updatedAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Updated Recently</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="p-4 rounded-xl bg-card border">
+            <p className="text-sm text-muted-foreground">Total Policies</p>
+            <p className="text-2xl font-bold">{policies.length}</p>
+          </div>
+          <div className="p-4 rounded-xl bg-card border">
+            <p className="text-sm text-muted-foreground">Active</p>
+            <p className="text-2xl font-bold">{policies.filter((p: any) => p.is_active).length}</p>
+          </div>
+          <div className="p-4 rounded-xl bg-card border">
+            <p className="text-sm text-muted-foreground">Categories</p>
+            <p className="text-2xl font-bold">{new Set(policies.map((p: any) => p.category)).size}</p>
+          </div>
         </div>
 
-        {/* Filters */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -215,68 +254,130 @@ export default function Policies() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              {categories.map((cat) => (
-                <SelectItem key={cat} value={cat}>
-                  {cat}
-                </SelectItem>
-              ))}
+              <SelectItem value="HR">HR</SelectItem>
+              <SelectItem value="General">General</SelectItem>
+              <SelectItem value="IT">IT</SelectItem>
+              <SelectItem value="Finance">Finance</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
-        {/* Policy Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredPolicies.map((policy) => (
-            <Card key={policy.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{getCategoryIcon(policy.category)}</span>
-                    <div>
-                      <CardTitle className="text-base line-clamp-1">{policy.title}</CardTitle>
-                      <p className="text-xs text-muted-foreground mt-1">{policy.category}</p>
-                    </div>
-                  </div>
-                  <StatusBadge status={policy.isActive ? 'active' : 'inactive'} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Version</span>
-                    <span className="font-medium">{policy.version}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Effective</span>
-                    <span>{format(new Date(policy.effectiveDate), 'MMM d, yyyy')}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Updated</span>
-                    <span>{format(new Date(policy.updatedAt), 'MMM d, yyyy')}</span>
-                  </div>
-                  <div className="flex items-center gap-2 pt-3 border-t">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      <Eye className="w-4 h-4 mr-1" />
-                      View
-                    </Button>
-                    <Button variant="outline" size="sm" className="flex-1">
-                      <Download className="w-4 h-4 mr-1" />
-                      Download
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <DataTable
+          columns={columns}
+          data={filteredPolicies}
+          keyExtractor={(policy) => policy.id}
+          emptyMessage="No policies found"
+        />
 
-        {filteredPolicies.length === 0 && (
-          <div className="text-center py-12">
-            <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold">No policies found</h3>
-            <p className="text-muted-foreground">Try adjusting your search or filters</p>
-          </div>
-        )}
+        {/* Create/Edit Dialog */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle>{selectedPolicy ? 'Edit Policy' : 'Add Policy'}</DialogTitle>
+              <DialogDescription>
+                {selectedPolicy ? 'Update policy details.' : 'Upload and publish a new policy.'}
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="title">Policy Title</Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="e.g. Employee Handbook"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category</Label>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) => setFormData({ ...formData, category: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="General">General</SelectItem>
+                      <SelectItem value="HR">HR</SelectItem>
+                      <SelectItem value="IT">IT</SelectItem>
+                      <SelectItem value="Finance">Finance</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="version">Version</Label>
+                  <Input
+                    id="version"
+                    value={formData.version}
+                    onChange={(e) => setFormData({ ...formData, version: e.target.value })}
+                    placeholder="1.0"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="effective_date">Effective Date</Label>
+                <Input
+                  id="effective_date"
+                  type="date"
+                  value={formData.effective_date}
+                  onChange={(e) => setFormData({ ...formData, effective_date: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="document_url">Document URL</Label>
+                <div className="relative">
+                  <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="document_url"
+                    value={formData.document_url}
+                    onChange={(e) => setFormData({ ...formData, document_url: e.target.value })}
+                    placeholder="https://..."
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Description (Optional)</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Brief description of the policy..."
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={formData.is_active ? 'active' : 'inactive'}
+                  onValueChange={(value) => setFormData({ ...formData, is_active: value === 'active' })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                  {createMutation.isPending || updateMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : null}
+                  {selectedPolicy ? 'Update' : 'Publish'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </MainLayout>
   );

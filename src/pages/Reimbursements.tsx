@@ -1,120 +1,217 @@
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader } from '@/components/ui/page-header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { DataTable, Column } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { reimbursements, employees, getEmployeeReimbursements } from '@/data/mockData';
-import { Reimbursement } from '@/types/hrms';
-import { useAuth } from '@/contexts/AuthContext';
-import { Plus, Check, X, Clock, DollarSign } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Plus, Search, DollarSign, FileText, Check, X, Loader2, Paperclip } from 'lucide-react';
 import { format } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { reimbursementService } from '@/services/apiService';
+import { toast } from 'sonner';
 
 export default function Reimbursements() {
   const { isHR, user } = useAuth();
   const [statusFilter, setStatusFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedReimburse, setSelectedReimburse] = useState<any>(null);
+  const [formData, setFormData] = useState({
+    amount: '',
+    category: 'Travel',
+    description: '',
+    receipt_url: ''
+  });
+  const [remarks, setRemarks] = useState('');
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
 
-  const myReimbursements = getEmployeeReimbursements(user?.id || '');
-  const getEmployeeDetails = (employeeId: string) => employees.find((e) => e.id === employeeId);
+  const queryClient = useQueryClient();
 
-  const filteredReimbursements = reimbursements.filter((r) => {
-    const matchesStatus = statusFilter === 'all' || r.status === statusFilter;
-    const matchesCategory = categoryFilter === 'all' || r.category === categoryFilter;
-    return matchesStatus && matchesCategory;
+  // Fetch Reimbursements
+  const { data: reimbursements = [], isLoading } = useQuery({
+    queryKey: ['reimbursements', statusFilter],
+    queryFn: async () => {
+      const { data } = await reimbursementService.getAll({
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+      });
+      return data;
+    },
   });
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'travel': return '✈️';
-      case 'event': return '🎉';
-      case 'medical': return '🏥';
-      case 'equipment': return '💻';
-      default: return '📦';
-    }
+  // Create Mutation
+  const createMutation = useMutation({
+    mutationFn: reimbursementService.submit,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reimbursements'] });
+      setIsDialogOpen(false);
+      toast.success('Reimbursement submitted successfully');
+      resetForm();
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to submit reimbursement'),
+  });
+
+  // Approve Mutation
+  const approveMutation = useMutation({
+    mutationFn: ({ id }: any) => reimbursementService.approve(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reimbursements'] });
+      toast.success('Reimbursement approved');
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to approve reimbursement'),
+  });
+
+  // Reject Mutation
+  const rejectMutation = useMutation({
+    mutationFn: ({ id, remarks }: any) => reimbursementService.reject(id, remarks),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reimbursements'] });
+      setIsRejectDialogOpen(false);
+      toast.success('Reimbursement rejected');
+      setRemarks('');
+      setSelectedReimburse(null);
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to reject reimbursement'),
+  });
+
+  const resetForm = () => {
+    setFormData({ amount: '', category: 'Travel', description: '', receipt_url: '' });
   };
 
-  const hrColumns: Column<Reimbursement>[] = [
+  const openCreateDialog = () => {
+    resetForm();
+    setIsDialogOpen(true);
+  };
+
+  const openRejectDialog = (reimburse: any) => {
+    setSelectedReimburse(reimburse);
+    setRemarks('');
+    setIsRejectDialogOpen(true);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createMutation.mutate({ ...formData, amount: Number(formData.amount) });
+  };
+
+  const hrColumns: Column<any>[] = [
     {
       key: 'employee',
       header: 'Employee',
-      cell: (r) => {
-        const emp = getEmployeeDetails(r.employeeId);
-        return (
-          <div className="flex items-center gap-3">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={emp?.avatar} />
-              <AvatarFallback>{emp?.name?.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="font-medium text-sm">{emp?.name}</p>
-              <p className="text-xs text-muted-foreground">{emp?.employeeId}</p>
-            </div>
-          </div>
-        );
-      },
+      cell: (reimburse) => (
+        <div>
+          <p className="font-medium">{reimburse.employee?.name}</p>
+          <p className="text-xs text-muted-foreground">{reimburse.employee?.employee_id}</p>
+        </div>
+      ),
     },
-    { key: 'category', header: 'Category', cell: (r) => <div className="flex items-center gap-2"><span>{getCategoryIcon(r.category)}</span><span className="capitalize">{r.category}</span></div> },
-    { key: 'amount', header: 'Amount', cell: (r) => <span className="font-semibold">${r.amount.toLocaleString()}</span> },
-    { key: 'description', header: 'Description', cell: (r) => <p className="text-sm text-muted-foreground line-clamp-1 max-w-[200px]">{r.description}</p> },
-    { key: 'date', header: 'Submitted', cell: (r) => <span className="text-sm text-muted-foreground">{format(new Date(r.createdAt), 'MMM d, yyyy')}</span> },
-    { key: 'status', header: 'Status', cell: (r) => <StatusBadge status={r.status} /> },
+    { key: 'category', header: 'Category', cell: (reimburse) => reimburse.category },
+    { key: 'amount', header: 'Amount', cell: (reimburse) => `₹${reimburse.amount.toLocaleString()}` },
+    { key: 'description', header: 'Description', cell: (reimburse) => <p className="text-sm text-muted-foreground truncate max-w-[200px]">{reimburse.description}</p> },
+    { key: 'date', header: 'Date', cell: (reimburse) => <span className="text-sm text-muted-foreground">{format(new Date(reimburse.date), 'MMM d, yyyy')}</span> },
+    { key: 'status', header: 'Status', cell: (reimburse) => <StatusBadge status={reimburse.status} /> },
     {
       key: 'actions',
       header: '',
-      cell: (r) => r.status === 'pending' ? (
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" className="text-success"><Check className="w-3 h-3 mr-1" />Approve</Button>
-          <Button size="sm" variant="outline" className="text-destructive"><X className="w-3 h-3 mr-1" />Reject</Button>
+      cell: (reimburse) => (
+        <div className="flex items-center gap-1">
+          {reimburse.receipt_url && (
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(reimburse.receipt_url, '_blank')}>
+              <Paperclip className="w-4 h-4" />
+            </Button>
+          )}
+          {reimburse.status === 'pending' && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-success hover:text-success hover:bg-success/10"
+                onClick={() => approveMutation.mutate({ id: reimburse.id })}
+              >
+                <Check className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => openRejectDialog(reimburse)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </>
+          )}
         </div>
-      ) : null,
+      ),
     },
   ];
 
-  const employeeColumns: Column<Reimbursement>[] = [
-    { key: 'category', header: 'Category', cell: (r) => <div className="flex items-center gap-2"><span className="text-lg">{getCategoryIcon(r.category)}</span><span className="capitalize font-medium">{r.category}</span></div> },
-    { key: 'amount', header: 'Amount', cell: (r) => <span className="font-semibold">${r.amount.toLocaleString()}</span> },
-    { key: 'description', header: 'Description', cell: (r) => <p className="text-sm text-muted-foreground">{r.description}</p> },
-    { key: 'date', header: 'Submitted', cell: (r) => <span className="text-sm text-muted-foreground">{format(new Date(r.createdAt), 'MMM d, yyyy')}</span> },
-    { key: 'status', header: 'Status', cell: (r) => <StatusBadge status={r.status} /> },
+  const employeeColumns: Column<any>[] = [
+    { key: 'category', header: 'Category', cell: (reimburse) => reimburse.category },
+    { key: 'amount', header: 'Amount', cell: (reimburse) => `₹${reimburse.amount.toLocaleString()}` },
+    { key: 'description', header: 'Description', cell: (reimburse) => <p className="text-sm text-muted-foreground truncate max-w-[200px]">{reimburse.description}</p> },
+    { key: 'date', header: 'Date', cell: (reimburse) => <span className="text-sm text-muted-foreground">{format(new Date(reimburse.date), 'MMM d, yyyy')}</span> },
+    { key: 'status', header: 'Status', cell: (reimburse) => <StatusBadge status={reimburse.status} /> },
+    { key: 'remarks', header: 'Remarks', cell: (reimburse) => <p className="text-sm text-muted-foreground truncate max-w-[150px]">{reimburse.remarks || '-'}</p> },
   ];
 
-  const totalPending = reimbursements.filter((r) => r.status === 'pending').reduce((sum, r) => sum + r.amount, 0);
-  const totalApproved = reimbursements.filter((r) => r.status === 'approved').reduce((sum, r) => sum + r.amount, 0);
-  const myPendingTotal = myReimbursements.filter((r) => r.status === 'pending').reduce((sum, r) => sum + r.amount, 0);
-  const myApprovedTotal = myReimbursements.filter((r) => r.status === 'approved').reduce((sum, r) => sum + r.amount, 0);
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
+
+  const myReimbursements = reimbursements.filter((r: any) => r.employee_id === user?.id);
 
   return (
     <MainLayout>
       <div className="space-y-6 animate-fade-in">
-        <PageHeader title="Reimbursements" description={isHR ? 'Review and process expense claims' : 'Submit and track expense claims'}>
-          {!isHR && <Button><Plus className="w-4 h-4 mr-2" />Submit Claim</Button>}
+        <PageHeader title="Reimbursements" description={isHR ? 'Manage employee reimbursement claims' : 'Submit and track reimbursement claims'}>
+          {!isHR && (
+            <Button onClick={openCreateDialog}>
+              <Plus className="w-4 h-4 mr-2" />
+              New Claim
+            </Button>
+          )}
         </PageHeader>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {isHR ? (
-            <>
-              <Card><CardContent className="pt-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center"><Clock className="w-5 h-5 text-warning" /></div><div><p className="text-2xl font-bold">{reimbursements.filter((r) => r.status === 'pending').length}</p><p className="text-xs text-muted-foreground">Pending</p></div></div></CardContent></Card>
-              <Card><CardContent className="pt-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center"><DollarSign className="w-5 h-5 text-primary" /></div><div><p className="text-2xl font-bold">${totalPending.toLocaleString()}</p><p className="text-xs text-muted-foreground">Pending Amount</p></div></div></CardContent></Card>
-              <Card><CardContent className="pt-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center"><Check className="w-5 h-5 text-success" /></div><div><p className="text-2xl font-bold">{reimbursements.filter((r) => r.status === 'approved').length}</p><p className="text-xs text-muted-foreground">Approved</p></div></div></CardContent></Card>
-              <Card><CardContent className="pt-4"><p className="text-2xl font-bold">${totalApproved.toLocaleString()}</p><p className="text-xs text-muted-foreground">Approved Amount</p></CardContent></Card>
-            </>
-          ) : (
-            <>
-              <Card><CardContent className="pt-4"><p className="text-2xl font-bold">${myPendingTotal.toLocaleString()}</p><p className="text-xs text-muted-foreground">Pending</p></CardContent></Card>
-              <Card><CardContent className="pt-4"><p className="text-2xl font-bold">${myApprovedTotal.toLocaleString()}</p><p className="text-xs text-muted-foreground">Approved</p></CardContent></Card>
-              <Card><CardContent className="pt-4"><p className="text-2xl font-bold">{myReimbursements.length}</p><p className="text-xs text-muted-foreground">Total Claims</p></CardContent></Card>
-              <Card><CardContent className="pt-4"><p className="text-2xl font-bold">{myReimbursements.filter((r) => r.status === 'rejected').length}</p><p className="text-xs text-muted-foreground">Rejected</p></CardContent></Card>
-            </>
-          )}
+        {/* Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="p-4 rounded-xl bg-card border">
+            <p className="text-sm text-muted-foreground">Total Claims</p>
+            <p className="text-2xl font-bold">{isHR ? reimbursements.length : myReimbursements.length}</p>
+          </div>
+          <div className="p-4 rounded-xl bg-card border">
+            <p className="text-sm text-muted-foreground">Pending Approval</p>
+            <p className="text-2xl font-bold">
+              {isHR
+                ? reimbursements.filter((r: any) => r.status === 'pending').length
+                : myReimbursements.filter((r: any) => r.status === 'pending').length}
+            </p>
+          </div>
+          <div className="p-4 rounded-xl bg-card border">
+            <p className="text-sm text-muted-foreground">Total Amount</p>
+            <p className="text-2xl font-bold">
+              ₹{(isHR ? reimbursements : myReimbursements)
+                .filter((r: any) => r.status === 'approved')
+                .reduce((sum: number, r: any) => sum + Number(r.amount), 0)
+                .toLocaleString()}
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-4">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[150px]"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
@@ -122,30 +219,115 @@ export default function Reimbursements() {
               <SelectItem value="rejected">Rejected</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[150px]"><SelectValue placeholder="Category" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="travel">Travel</SelectItem>
-              <SelectItem value="event">Event</SelectItem>
-              <SelectItem value="medical">Medical</SelectItem>
-              <SelectItem value="equipment">Equipment</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
-        <Card>
-          <CardHeader><CardTitle className="text-base">{isHR ? 'All Reimbursements' : 'My Reimbursements'}</CardTitle></CardHeader>
-          <CardContent>
-            <DataTable
-              columns={isHR ? hrColumns : employeeColumns}
-              data={isHR ? filteredReimbursements : myReimbursements.filter((r) => (statusFilter === 'all' || r.status === statusFilter) && (categoryFilter === 'all' || r.category === categoryFilter))}
-              keyExtractor={(r) => r.id}
-              emptyMessage="No reimbursements found"
-            />
-          </CardContent>
-        </Card>
+        <DataTable
+          columns={isHR ? hrColumns : employeeColumns}
+          data={isHR ? reimbursements : myReimbursements}
+          keyExtractor={(reimburse) => reimburse.id}
+          emptyMessage="No reimbursement claims found"
+        />
+
+        {/* Create Dialog */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>New Reimbursement Claim</DialogTitle>
+              <DialogDescription>Submit a new claim for expense reimbursement.</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="category">Category</Label>
+                <Select
+                  value={formData.category}
+                  onValueChange={(value) => setFormData({ ...formData, category: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Travel">Travel</SelectItem>
+                    <SelectItem value="Food">Food</SelectItem>
+                    <SelectItem value="Lodging">Lodging</SelectItem>
+                    <SelectItem value="Equipment">Equipment</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="amount">Amount (₹)</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  value={formData.amount}
+                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Details about the expense..."
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="receipt">Receipt URL (Optional)</Label>
+                <Input
+                  id="receipt"
+                  value={formData.receipt_url}
+                  onChange={(e) => setFormData({ ...formData, receipt_url: e.target.value })}
+                  placeholder="https://..."
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={createMutation.isPending}>
+                  {createMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Submit Claim
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reject Dialog */}
+        <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reject Reimbursement</DialogTitle>
+              <DialogDescription>Please provide a reason for rejection.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="remarks">Remarks</Label>
+                <Textarea
+                  id="remarks"
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  placeholder="Reason for rejection..."
+                  required
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsRejectDialogOpen(false)}>Cancel</Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => selectedReimburse && rejectMutation.mutate({ id: selectedReimburse.id, remarks })}
+                  disabled={!remarks || rejectMutation.isPending}
+                >
+                  {rejectMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Reject
+                </Button>
+              </DialogFooter>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </MainLayout>
   );

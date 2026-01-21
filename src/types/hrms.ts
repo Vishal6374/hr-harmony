@@ -97,28 +97,28 @@ export interface PayrollBatch {
   month: number;
   year: number;
   status: PayrollStatus;
-  totalEmployees: number;
-  totalAmount: number;
-  processedBy?: string;
-  processedAt?: Date;
-  paidAt?: Date;
+  total_employees: number;
+  total_amount: number;
+  processed_by?: string;
+  processed_at?: Date;
+  paid_at?: Date;
 }
 
 export interface SalarySlip {
   id: string;
-  employeeId: string;
-  batchId: string;
+  employee_id: string;
+  batch_id: string;
   month: number;
   year: number;
-  basicSalary: number;
+  basic_salary: number;
   hra: number;
   da: number;
   reimbursements: number;
-  deductions: { pf: number; tax: number; lossOfPay: number; other: number; };
-  grossSalary: number;
-  netSalary: number;
+  deductions: { pf: number; tax: number; loss_of_pay: number; other: number; };
+  gross_salary: number;
+  net_salary: number;
   status: PayrollStatus;
-  generatedAt: Date;
+  generated_at: Date;
 }
 
 export type ReimbursementCategory = 'travel' | 'event' | 'medical' | 'equipment' | 'other';

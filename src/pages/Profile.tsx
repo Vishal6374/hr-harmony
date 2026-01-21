@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,41 +11,88 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
-import { employees, departments, designations } from '@/data/mockData';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Calendar, 
-  Building2, 
-  Briefcase, 
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { employeeService } from '@/services/apiService';
+import { toast } from 'sonner';
+import {
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  Building2,
+  Briefcase,
   DollarSign,
   Upload,
   FileText,
   Save,
-  Camera
+  Camera,
+  Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function Profile() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
-
-  // Get full employee data
-  const employeeData = employees.find((e) => e.id === user?.id) || employees[0];
-  const department = departments.find((d) => d.id === employeeData.departmentId);
-  const designation = designations.find((d) => d.id === employeeData.designationId);
-
   const [formData, setFormData] = useState({
-    phone: employeeData.phone,
-    address: employeeData.address,
+    phone: '',
+    address: '',
+  });
+
+  const { data: employee, isLoading } = useQuery({
+    queryKey: ['profile', user?.id],
+    queryFn: async () => {
+      const { data } = await employeeService.getById(user?.id as string);
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  useEffect(() => {
+    if (employee) {
+      setFormData({
+        phone: employee.phone || '',
+        address: employee.address || '',
+      });
+    }
+  }, [employee]);
+
+  const updateMutation = useMutation({
+    mutationFn: (data: any) => employeeService.update(user?.id as string, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
+      toast.success('Profile updated successfully');
+      setIsEditing(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update profile');
+    }
   });
 
   const handleSave = () => {
-    console.log('Saving profile:', formData);
-    setIsEditing(false);
+    updateMutation.mutate(formData);
   };
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (!employee) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+          <p>Employee not found</p>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -58,8 +105,8 @@ export default function Profile() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
               <div className="relative">
                 <Avatar className="w-24 h-24 border-4 border-background shadow-lg">
-                  <AvatarImage src={employeeData.avatar} alt={employeeData.name} />
-                  <AvatarFallback className="text-2xl">{employeeData.name.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={employee.avatar_url} alt={employee.name} />
+                  <AvatarFallback className="text-2xl">{employee.name?.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <button className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors">
                   <Camera className="w-4 h-4" />
@@ -68,29 +115,29 @@ export default function Profile() {
               <div className="flex-1">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h2 className="text-2xl font-bold">{employeeData.name}</h2>
-                    <p className="text-muted-foreground">{designation?.name}</p>
-                    <p className="text-sm text-muted-foreground">{department?.name}</p>
+                    <h2 className="text-2xl font-bold">{employee.name}</h2>
+                    <p className="text-muted-foreground">{employee.designation?.name}</p>
+                    <p className="text-sm text-muted-foreground">{employee.department?.name}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <StatusBadge status={employeeData.status} />
+                    <StatusBadge status={employee.status} />
                     <span className="text-sm text-muted-foreground px-2 py-1 bg-muted rounded-md">
-                      {employeeData.employeeId}
+                      {employee.employee_id}
                     </span>
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-4 mt-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Mail className="w-4 h-4" />
-                    {employeeData.email}
+                    {employee.email}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Phone className="w-4 h-4" />
-                    {employeeData.phone}
+                    {employee.phone || 'N/A'}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Calendar className="w-4 h-4" />
-                    Joined {format(new Date(employeeData.dateOfJoining), 'MMMM yyyy')}
+                    Joined {employee.date_of_joining ? format(new Date(employee.date_of_joining), 'MMMM yyyy') : 'N/A'}
                   </div>
                 </div>
               </div>
@@ -120,8 +167,9 @@ export default function Profile() {
                     <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}>
                       Cancel
                     </Button>
-                    <Button size="sm" onClick={handleSave}>
-                      <Save className="w-4 h-4 mr-1" />
+                    <Button size="sm" onClick={handleSave} disabled={updateMutation.isPending}>
+                      {updateMutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                      {!updateMutation.isPending && <Save className="w-4 h-4 mr-1" />}
                       Save
                     </Button>
                   </div>
@@ -134,7 +182,7 @@ export default function Profile() {
                       <User className="w-4 h-4 text-muted-foreground" />
                       Full Name
                     </Label>
-                    <Input value={employeeData.name} disabled className="bg-muted" />
+                    <Input value={employee.name} disabled className="bg-muted" />
                     <p className="text-xs text-muted-foreground">Contact HR to change your name</p>
                   </div>
                   <div className="space-y-2">
@@ -142,7 +190,7 @@ export default function Profile() {
                       <Mail className="w-4 h-4 text-muted-foreground" />
                       Email
                     </Label>
-                    <Input value={employeeData.email} disabled className="bg-muted" />
+                    <Input value={employee.email} disabled className="bg-muted" />
                     <p className="text-xs text-muted-foreground">Contact IT to change your email</p>
                   </div>
                   <div className="space-y-2">
@@ -163,7 +211,7 @@ export default function Profile() {
                       Date of Birth
                     </Label>
                     <Input
-                      value={format(new Date(employeeData.dateOfBirth), 'yyyy-MM-dd')}
+                      value={employee.date_of_birth ? format(new Date(employee.date_of_birth), 'yyyy-MM-dd') : ''}
                       type="date"
                       disabled
                       className="bg-muted"
@@ -201,21 +249,21 @@ export default function Profile() {
                       <Building2 className="w-4 h-4" />
                       <span className="text-sm">Department</span>
                     </div>
-                    <p className="font-medium">{department?.name}</p>
+                    <p className="font-medium">{employee.department?.name || 'N/A'}</p>
                   </div>
                   <div className="p-4 rounded-lg bg-muted/50 space-y-1">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Briefcase className="w-4 h-4" />
                       <span className="text-sm">Designation</span>
                     </div>
-                    <p className="font-medium">{designation?.name}</p>
+                    <p className="font-medium">{employee.designation?.name || 'N/A'}</p>
                   </div>
                   <div className="p-4 rounded-lg bg-muted/50 space-y-1">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <User className="w-4 h-4" />
                       <span className="text-sm">Role</span>
                     </div>
-                    <p className="font-medium capitalize">{employeeData.role}</p>
+                    <p className="font-medium capitalize">{employee.role}</p>
                   </div>
                   <div className="p-4 rounded-lg bg-muted/50 space-y-1">
                     <div className="flex items-center gap-2 text-muted-foreground">
@@ -223,7 +271,7 @@ export default function Profile() {
                       <span className="text-sm">Date of Joining</span>
                     </div>
                     <p className="font-medium">
-                      {format(new Date(employeeData.dateOfJoining), 'MMMM d, yyyy')}
+                      {employee.date_of_joining ? format(new Date(employee.date_of_joining), 'MMMM d, yyyy') : 'N/A'}
                     </p>
                   </div>
                 </div>
@@ -238,7 +286,7 @@ export default function Profile() {
                         <span className="text-sm">Annual Salary</span>
                       </div>
                       <p className="text-3xl font-bold mt-1">
-                        ${employeeData.salary.toLocaleString()}
+                        ${Number(employee.salary).toLocaleString()}
                       </p>
                       <p className="text-white/70 text-sm mt-1">
                         Contact HR for salary revision requests
@@ -258,43 +306,20 @@ export default function Profile() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Document Cards */}
+                  {/* Document Cards - You might want to fetch these from an API too eventually */}
                   <div className="p-4 rounded-lg border flex items-center gap-4 hover:bg-muted/50 transition-colors">
                     <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
                       <FileText className="w-6 h-6 text-primary" />
                     </div>
                     <div className="flex-1">
                       <p className="font-medium">Offer Letter</p>
-                      <p className="text-sm text-muted-foreground">Uploaded Jan 15, 2022</p>
+                      <p className="text-sm text-muted-foreground">Uploaded {employee.created_at ? format(new Date(employee.created_at), 'MMM d, yyyy') : 'N/A'}</p>
                     </div>
                     <Button variant="ghost" size="sm">
                       View
                     </Button>
                   </div>
-                  <div className="p-4 rounded-lg border flex items-center gap-4 hover:bg-muted/50 transition-colors">
-                    <div className="w-12 h-12 rounded-lg bg-success/10 flex items-center justify-center">
-                      <FileText className="w-6 h-6 text-success" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium">ID Proof</p>
-                      <p className="text-sm text-muted-foreground">Uploaded Jan 15, 2022</p>
-                    </div>
-                    <Button variant="ghost" size="sm">
-                      View
-                    </Button>
-                  </div>
-                  <div className="p-4 rounded-lg border flex items-center gap-4 hover:bg-muted/50 transition-colors">
-                    <div className="w-12 h-12 rounded-lg bg-warning/10 flex items-center justify-center">
-                      <FileText className="w-6 h-6 text-warning" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium">Employment Contract</p>
-                      <p className="text-sm text-muted-foreground">Uploaded Jan 15, 2022</p>
-                    </div>
-                    <Button variant="ghost" size="sm">
-                      View
-                    </Button>
-                  </div>
+                  {/* ... other static document cards or dynamic ones */}
 
                   {/* Upload New Document */}
                   <div className="p-4 rounded-lg border-2 border-dashed flex items-center justify-center hover:border-primary/50 transition-colors cursor-pointer">

@@ -28,7 +28,7 @@ export default function Login() {
 
   const fillCredentials = (type: 'hr' | 'employee') => {
     if (type === 'hr') { setEmail('hr@company.com'); setPassword('hr123'); }
-    else { setEmail('employee@company.com'); setPassword('emp123'); }
+    else { setEmail('john.smith@company.com'); setPassword('emp@123'); }
   };
 
   return (

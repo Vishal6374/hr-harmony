@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
+import { authService } from '@/services/apiService';
+import { toast } from 'sonner';
 
 export type UserRole = 'hr' | 'employee';
 
@@ -20,59 +22,56 @@ interface AuthContextType {
   logout: () => void;
   isHR: boolean;
   isEmployee: boolean;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const mockUsers: Record<string, { password: string; user: User }> = {
-  'hr@company.com': {
-    password: 'hr123',
-    user: {
-      id: '1',
-      employeeId: 'EMP2026-0001',
-      name: 'Sarah Johnson',
-      email: 'hr@company.com',
-      role: 'hr',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-      departmentId: 'dept-1',
-      designationId: 'des-1',
-    },
-  },
-  'employee@company.com': {
-    password: 'emp123',
-    user: {
-      id: '2',
-      employeeId: 'EMP2026-0015',
-      name: 'John Smith',
-      email: 'employee@company.com',
-      role: 'employee',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-      departmentId: 'dept-2',
-      designationId: 'des-3',
-    },
-  },
-};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
     const stored = localStorage.getItem('hrms_user');
     return stored ? JSON.parse(stored) : null;
   });
+  const [loading, setLoading] = useState(false);
 
   const login = useCallback(async (email: string, password: string): Promise<boolean> => {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    const mockUser = mockUsers[email.toLowerCase()];
-    if (mockUser && mockUser.password === password) {
-      setUser(mockUser.user);
-      localStorage.setItem('hrms_user', JSON.stringify(mockUser.user));
+    try {
+      setLoading(true);
+      const { data } = await authService.login(email, password);
+
+      // Map API response (snake_case) to frontend format (camelCase)
+      const mappedUser = {
+        id: data.user.id,
+        employeeId: data.user.employee_id,
+        name: data.user.name,
+        email: data.user.email,
+        role: data.user.role,
+        avatar: data.user.avatar_url,
+        departmentId: data.user.department_id,
+        designationId: data.user.designation_id,
+      };
+
+      // Store token and user data
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('hrms_user', JSON.stringify(mappedUser));
+      setUser(mappedUser);
+
+      toast.success('Login successful!');
       return true;
+    } catch (error: any) {
+      console.error('Login failed:', error);
+      toast.error(error.response?.data?.message || 'Login failed. Please check your credentials.');
+      return false;
+    } finally {
+      setLoading(false);
     }
-    return false;
   }, []);
 
   const logout = useCallback(() => {
     setUser(null);
+    localStorage.removeItem('token');
     localStorage.removeItem('hrms_user');
+    toast.success('Logged out successfully');
   }, []);
 
   const value: AuthContextType = {
@@ -82,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     isHR: user?.role === 'hr',
     isEmployee: user?.role === 'employee',
+    loading,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

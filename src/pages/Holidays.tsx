@@ -1,359 +1,288 @@
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { PageHeader } from '@/components/ui/page-header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DataTable, Column } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { DataTable, Column } from '@/components/ui/data-table';
-import { StatusBadge } from '@/components/ui/status-badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { holidays } from '@/data/mockData';
-import { Holiday } from '@/types/hrms';
+import { Plus, Calendar, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, CalendarRange, Calendar, PartyPopper, Flag, Building2 } from 'lucide-react';
-import { format, isBefore, isAfter, startOfDay } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { Navigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { holidayService } from '@/services/apiService';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { toast } from 'sonner';
 
 export default function Holidays() {
   const { isHR } = useAuth();
-  const [yearFilter, setYearFilter] = useState('2026');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [newHoliday, setNewHoliday] = useState({
-    name: '',
-    date: '',
-    type: 'company',
-    isOptional: false,
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedHoliday, setSelectedHoliday] = useState<any>(null);
+  const [formData, setFormData] = useState({ name: '', date: '', type: 'national', is_optional: false });
+
+  const queryClient = useQueryClient();
+
+  if (!isHR) return <Navigate to="/dashboard" replace />;
+
+  const { data: holidays = [], isLoading } = useQuery({
+    queryKey: ['holidays', selectedYear],
+    queryFn: async () => {
+      const { data } = await holidayService.getAll({ year: selectedYear });
+      return data;
+    },
   });
 
-  const today = startOfDay(new Date());
+  const createMutation = useMutation({
+    mutationFn: holidayService.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['holidays'] });
+      setIsDialogOpen(false);
+      toast.success('Holiday created successfully');
+      resetForm();
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to create holiday'),
+  });
 
-  const filteredHolidays = holidays
-    .filter((h) => {
-      const matchesYear = h.year.toString() === yearFilter;
-      const matchesType = typeFilter === 'all' || h.type === typeFilter;
-      return matchesYear && matchesType;
-    })
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: any) => holidayService.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['holidays'] });
+      setIsDialogOpen(false);
+      toast.success('Holiday updated successfully');
+      resetForm();
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to update holiday'),
+  });
 
-  const upcomingHolidays = filteredHolidays.filter((h) => isAfter(new Date(h.date), today));
-  const pastHolidays = filteredHolidays.filter((h) => isBefore(new Date(h.date), today));
+  const deleteMutation = useMutation({
+    mutationFn: holidayService.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['holidays'] });
+      toast.success('Holiday deleted successfully');
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to delete holiday'),
+  });
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'national':
-        return <Flag className="w-4 h-4 text-destructive" />;
-      case 'regional':
-        return <PartyPopper className="w-4 h-4 text-warning" />;
-      case 'company':
-        return <Building2 className="w-4 h-4 text-primary" />;
-      default:
-        return <Calendar className="w-4 h-4" />;
+  const resetForm = () => {
+    setSelectedHoliday(null);
+    setFormData({ name: '', date: '', type: 'national', is_optional: false });
+  };
+
+  const openCreateDialog = () => {
+    resetForm();
+    setIsDialogOpen(true);
+  };
+
+  const openEditDialog = (holiday: any) => {
+    setSelectedHoliday(holiday);
+    setFormData({
+      name: holiday.name,
+      date: holiday.date.split('T')[0],
+      type: holiday.type,
+      is_optional: holiday.is_optional,
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm('Are you sure you want to delete this holiday?')) {
+      deleteMutation.mutate(id);
     }
   };
 
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case 'national':
-        return 'National';
-      case 'regional':
-        return 'Regional';
-      case 'company':
-        return 'Company';
-      default:
-        return type;
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedHoliday) {
+      updateMutation.mutate({ id: selectedHoliday.id, data: formData });
+    } else {
+      createMutation.mutate(formData);
     }
   };
 
-  const columns: Column<Holiday>[] = [
+  const columns: Column<any>[] = [
     {
       key: 'name',
       header: 'Holiday',
-      cell: (h) => (
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-            {getTypeIcon(h.type)}
+      cell: (holiday) => {
+        const dateStr = holiday.date ? format(new Date(holiday.date), 'EEEE, MMMM d, yyyy') : '-';
+        return (
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Calendar className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="font-medium">{holiday.name}</p>
+              <p className="text-xs text-muted-foreground">{dateStr}</p>
+            </div>
           </div>
-          <div>
-            <p className="font-medium">{h.name}</p>
-            <p className="text-xs text-muted-foreground capitalize">{getTypeLabel(h.type)}</p>
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: 'date',
-      header: 'Date',
-      cell: (h) => (
-        <div>
-          <p className="font-medium">{format(new Date(h.date), 'MMMM d, yyyy')}</p>
-          <p className="text-xs text-muted-foreground">{format(new Date(h.date), 'EEEE')}</p>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: 'type',
       header: 'Type',
-      cell: (h) => (
-        <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
-              h.type === 'national' && 'bg-destructive/10 text-destructive',
-              h.type === 'regional' && 'bg-warning/10 text-warning',
-              h.type === 'company' && 'bg-primary/10 text-primary'
-            )}
-          >
-            {getTypeIcon(h.type)}
-            {getTypeLabel(h.type)}
-          </span>
-        </div>
+      cell: (holiday) => (
+        <StatusBadge status={holiday.type === 'national' ? 'active' : 'inactive'} label={holiday.type} />
       ),
     },
     {
       key: 'optional',
       header: 'Optional',
-      cell: (h) => (
-        <span className={cn('text-sm', h.isOptional ? 'text-muted-foreground' : 'font-medium')}>
-          {h.isOptional ? 'Yes' : 'No'}
-        </span>
+      cell: (holiday) => (
+        <span className="text-sm">{holiday.is_optional ? 'Yes' : 'No'}</span>
       ),
     },
     {
-      key: 'status',
-      header: 'Status',
-      cell: (h) => {
-        const isPast = isBefore(new Date(h.date), today);
-        return (
-          <StatusBadge status={isPast ? 'closed' : 'active'} />
-        );
-      },
+      key: 'actions',
+      header: '',
+      cell: (holiday) => (
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(holiday)}>
+            <Pencil className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-destructive hover:text-destructive"
+            onClick={() => handleDelete(holiday.id)}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      ),
+      className: 'w-[100px]',
     },
   ];
 
-  const handleAddHoliday = () => {
-    console.log('Adding holiday:', newHoliday);
-    setIsAddDialogOpen(false);
-    setNewHoliday({
-      name: '',
-      date: '',
-      type: 'company',
-      isOptional: false,
-    });
-  };
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
       <div className="space-y-6 animate-fade-in">
-        <PageHeader
-          title="Holidays"
-          description={isHR ? 'Manage company holidays' : 'View upcoming holidays'}
-        >
-          {isHR && (
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Holiday
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add Holiday</DialogTitle>
-                  <DialogDescription>Add a new holiday to the calendar</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label>Holiday Name</Label>
-                    <Input
-                      placeholder="e.g., Independence Day"
-                      value={newHoliday.name}
-                      onChange={(e) => setNewHoliday({ ...newHoliday, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Date</Label>
-                    <Input
-                      type="date"
-                      value={newHoliday.date}
-                      onChange={(e) => setNewHoliday({ ...newHoliday, date: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Type</Label>
-                    <Select
-                      value={newHoliday.type}
-                      onValueChange={(value) => setNewHoliday({ ...newHoliday, type: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="national">National</SelectItem>
-                        <SelectItem value="regional">Regional</SelectItem>
-                        <SelectItem value="company">Company</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="optional"
-                      checked={newHoliday.isOptional}
-                      onCheckedChange={(checked) =>
-                        setNewHoliday({ ...newHoliday, isOptional: !!checked })
-                      }
-                    />
-                    <Label htmlFor="optional" className="text-sm font-normal">
-                      Optional holiday
-                    </Label>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleAddHoliday}>Add Holiday</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          )}
+        <PageHeader title="Holidays" description="Manage company holidays">
+          <Button onClick={openCreateDialog}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Holiday
+          </Button>
         </PageHeader>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <CalendarRange className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{filteredHolidays.length}</p>
-                  <p className="text-xs text-muted-foreground">Total Holidays</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
-                  <Calendar className="w-5 h-5 text-success" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{upcomingHolidays.length}</p>
-                  <p className="text-xs text-muted-foreground">Upcoming</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
-                  <Flag className="w-5 h-5 text-destructive" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">
-                    {filteredHolidays.filter((h) => h.type === 'national').length}
-                  </p>
-                  <p className="text-xs text-muted-foreground">National</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
-                  <PartyPopper className="w-5 h-5 text-warning" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">
-                    {filteredHolidays.filter((h) => h.isOptional).length}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Optional</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="p-4 rounded-xl bg-card border">
+            <p className="text-sm text-muted-foreground">Total Holidays</p>
+            <p className="text-2xl font-bold">{holidays.length}</p>
+          </div>
+          <div className="p-4 rounded-xl bg-card border">
+            <p className="text-sm text-muted-foreground">National</p>
+            <p className="text-2xl font-bold">{holidays.filter((h: any) => h.type === 'national').length}</p>
+          </div>
+          <div className="p-4 rounded-xl bg-card border">
+            <p className="text-sm text-muted-foreground">Optional</p>
+            <p className="text-2xl font-bold">{holidays.filter((h: any) => h.is_optional).length}</p>
+          </div>
         </div>
 
-        {/* Next Holiday Card */}
-        {upcomingHolidays.length > 0 && (
-          <Card className="gradient-primary text-white">
-            <CardContent className="py-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-white/80 text-sm mb-1">Next Holiday</p>
-                  <h3 className="text-2xl font-bold">{upcomingHolidays[0].name}</h3>
-                  <p className="text-white/80 mt-1">
-                    {format(new Date(upcomingHolidays[0].date), 'EEEE, MMMM d, yyyy')}
-                  </p>
-                </div>
-                <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
-                  <Calendar className="w-8 h-8" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Filters */}
         <div className="flex items-center gap-4">
-          <Select value={yearFilter} onValueChange={setYearFilter}>
-            <SelectTrigger className="w-[120px]">
+          <Select
+            value={selectedYear.toString()}
+            onValueChange={(val) => setSelectedYear(Number(val))}
+          >
+            <SelectTrigger className="w-[180px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="2026">2026</SelectItem>
-              <SelectItem value="2025">2025</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="national">National</SelectItem>
-              <SelectItem value="regional">Regional</SelectItem>
-              <SelectItem value="company">Company</SelectItem>
+              {[2024, 2025, 2026, 2027].map(year => (
+                <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
 
-        {/* Holidays Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Holiday Calendar {yearFilter}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DataTable
-              columns={columns}
-              data={filteredHolidays}
-              keyExtractor={(h) => h.id}
-              emptyMessage="No holidays found"
-            />
-          </CardContent>
-        </Card>
+        <DataTable
+          columns={columns}
+          data={holidays}
+          keyExtractor={(holiday) => holiday.id}
+          emptyMessage="No holidays found"
+        />
+
+        {/* Create/Edit Dialog */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{selectedHoliday ? 'Edit Holiday' : 'Add Holiday'}</DialogTitle>
+              <DialogDescription>
+                {selectedHoliday ? 'Update holiday details.' : 'Add a new holiday to the calendar.'}
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="title">Holiday Name</Label>
+                <Input
+                  id="title"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g. New Year's Day"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="date">Date</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="type">Type</Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value) => setFormData({ ...formData, type: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="national">National</SelectItem>
+                    <SelectItem value="regional">Regional</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="optional"
+                  checked={formData.is_optional}
+                  onCheckedChange={(checked) => setFormData({ ...formData, is_optional: !!checked })}
+                />
+                <Label htmlFor="optional" className="text-sm font-normal">
+                  Mark as Optional Holiday
+                </Label>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                  {createMutation.isPending || updateMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : null}
+                  {selectedHoliday ? 'Update' : 'Create'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </MainLayout>
   );
