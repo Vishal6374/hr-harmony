@@ -127,7 +127,7 @@ const seed = async () => {
             );
         }
 
-        await LeaveBalance.bulkCreate(leaveBalances);
+        await LeaveBalance.bulkCreate(leaveBalances as any[]);
         console.log('✅ Leave balances created');
 
         // Create holidays

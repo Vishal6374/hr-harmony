@@ -142,7 +142,7 @@ export const approveLeave = async (req: AuthRequest, res: Response): Promise<voi
             throw new AppError(403, 'Only HR can approve leaves');
         }
 
-        const leaveRequest = await LeaveRequest.findByPk(id);
+        const leaveRequest = await LeaveRequest.findByPk(id as string);
 
         if (!leaveRequest) {
             throw new AppError(404, 'Leave request not found');
@@ -216,7 +216,7 @@ export const rejectLeave = async (req: AuthRequest, res: Response): Promise<void
             throw new AppError(403, 'Only HR can reject leaves');
         }
 
-        const leaveRequest = await LeaveRequest.findByPk(id);
+        const leaveRequest = await LeaveRequest.findByPk(id as string);
 
         if (!leaveRequest) {
             throw new AppError(404, 'Leave request not found');
@@ -250,7 +250,7 @@ export const cancelLeave = async (req: AuthRequest, res: Response): Promise<void
     try {
         const { id } = req.params;
 
-        const leaveRequest = await LeaveRequest.findByPk(id);
+        const leaveRequest = await LeaveRequest.findByPk(id as string);
 
         if (!leaveRequest) {
             throw new AppError(404, 'Leave request not found');

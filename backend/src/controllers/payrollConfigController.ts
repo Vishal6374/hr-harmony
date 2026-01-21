@@ -13,7 +13,7 @@ import User from '../models/User';
 import { AppError } from '../middleware/errorHandler';
 
 // ============ SALARY STRUCTURE CONTROLLERS ============
-export const getSalaryStructures = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getSalaryStructures = async (_req: AuthRequest, res: Response): Promise<void> => {
     const structures = await SalaryStructure.findAll({
         order: [['created_at', 'DESC']],
     });
@@ -47,7 +47,7 @@ export const updateSalaryStructure = async (req: AuthRequest, res: Response): Pr
     const { id } = req.params;
     const { name, description, components, deduction_rules, is_active } = req.body;
 
-    const structure = await SalaryStructure.findByPk(id);
+    const structure = await SalaryStructure.findByPk(id as string);
     if (!structure) {
         throw new AppError(404, 'Salary structure not found');
     }
@@ -75,7 +75,7 @@ export const updateSalaryStructure = async (req: AuthRequest, res: Response): Pr
 };
 
 // ============ PAY GROUP CONTROLLERS ============
-export const getPayGroups = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getPayGroups = async (_req: AuthRequest, res: Response): Promise<void> => {
     const payGroups = await PayGroup.findAll({
         include: [
             { model: SalaryStructure, as: 'salaryStructure' },
@@ -113,7 +113,7 @@ export const updatePayGroup = async (req: AuthRequest, res: Response): Promise<v
     const { id } = req.params;
     const updates = req.body;
 
-    const payGroup = await PayGroup.findByPk(id);
+    const payGroup = await PayGroup.findByPk(id as string);
     if (!payGroup) {
         throw new AppError(404, 'Pay group not found');
     }
@@ -167,7 +167,7 @@ export const updateTaxSlab = async (req: AuthRequest, res: Response): Promise<vo
     const { id } = req.params;
     const updates = req.body;
 
-    const taxSlab = await TaxSlab.findByPk(id);
+    const taxSlab = await TaxSlab.findByPk(id as string);
     if (!taxSlab) {
         throw new AppError(404, 'Tax slab not found');
     }
@@ -219,7 +219,7 @@ export const createInvestmentDeclaration = async (req: AuthRequest, res: Respons
 export const submitInvestmentDeclaration = async (req: AuthRequest, res: Response): Promise<void> => {
     const { id } = req.params;
 
-    const declaration = await InvestmentDeclaration.findByPk(id);
+    const declaration = await InvestmentDeclaration.findByPk(id as string);
     if (!declaration) {
         throw new AppError(404, 'Declaration not found');
     }
@@ -243,7 +243,7 @@ export const reviewInvestmentDeclaration = async (req: AuthRequest, res: Respons
         throw new AppError(403, 'Only HR can review declarations');
     }
 
-    const declaration = await InvestmentDeclaration.findByPk(id);
+    const declaration = await InvestmentDeclaration.findByPk(id as string);
     if (!declaration) {
         throw new AppError(404, 'Declaration not found');
     }
@@ -306,7 +306,7 @@ export const approveLoanAdvance = async (req: AuthRequest, res: Response): Promi
         throw new AppError(403, 'Only HR can approve loan/advance');
     }
 
-    const loanAdvance = await LoanAdvance.findByPk(id);
+    const loanAdvance = await LoanAdvance.findByPk(id as string);
     if (!loanAdvance) {
         throw new AppError(404, 'Loan/Advance not found');
     }
@@ -328,7 +328,7 @@ export const rejectLoanAdvance = async (req: AuthRequest, res: Response): Promis
         throw new AppError(403, 'Only HR can reject loan/advance');
     }
 
-    const loanAdvance = await LoanAdvance.findByPk(id);
+    const loanAdvance = await LoanAdvance.findByPk(id as string);
     if (!loanAdvance) {
         throw new AppError(404, 'Loan/Advance not found');
     }
@@ -419,7 +419,7 @@ export const approveFFSettlement = async (req: AuthRequest, res: Response): Prom
     }
 
     const { id } = req.params;
-    const settlement = await FFSettlement.findByPk(id);
+    const settlement = await FFSettlement.findByPk(id as string);
 
     if (!settlement) {
         throw new AppError(404, 'Settlement not found');
@@ -439,7 +439,7 @@ export const markFFSettlementPaid = async (req: AuthRequest, res: Response): Pro
     }
 
     const { id } = req.params;
-    const settlement = await FFSettlement.findByPk(id);
+    const settlement = await FFSettlement.findByPk(id as string);
 
     if (!settlement) {
         throw new AppError(404, 'Settlement not found');
@@ -486,7 +486,7 @@ export const holdSalary = async (req: AuthRequest, res: Response): Promise<void>
     const { id } = req.params;
     const { remarks } = req.body;
 
-    const slip = await SalarySlip.findByPk(id);
+    const slip = await SalarySlip.findByPk(id as string);
     if (!slip) {
         throw new AppError(404, 'Salary slip not found');
     }
@@ -517,7 +517,7 @@ export const releaseSalary = async (req: AuthRequest, res: Response): Promise<vo
 
     const { id } = req.params;
 
-    const slip = await SalarySlip.findByPk(id);
+    const slip = await SalarySlip.findByPk(id as string);
     if (!slip) {
         throw new AppError(404, 'Salary slip not found');
     }
@@ -569,7 +569,7 @@ export const generateBankAdvice = async (req: AuthRequest, res: Response): Promi
 
 // ============ TAX CALCULATION ============
 export const calculateTax = async (req: AuthRequest, res: Response): Promise<void> => {
-    const { employee_id, financial_year } = req.query;
+    const { employee_id, financial_year } = req.query as { employee_id?: string, financial_year?: string };
 
     const empId = req.user?.role === 'hr' ? employee_id : req.user?.id;
 
@@ -577,7 +577,7 @@ export const calculateTax = async (req: AuthRequest, res: Response): Promise<voi
     const [startYear] = financial_year!.toString().split('-');
     const slips = await SalarySlip.findAll({
         where: {
-            employee_id: empId,
+            employee_id: empId as string,
             year: { [Op.in]: [parseInt(startYear), parseInt(startYear) + 1] },
         },
     });
@@ -585,7 +585,7 @@ export const calculateTax = async (req: AuthRequest, res: Response): Promise<voi
     // Get investment declarations
     const declarations = await InvestmentDeclaration.findAll({
         where: {
-            employee_id: empId,
+            employee_id: empId as string,
             financial_year,
             status: 'approved',
         },
@@ -609,7 +609,7 @@ export const calculateTax = async (req: AuthRequest, res: Response): Promise<voi
     const employee = await User.findByPk(empId as string);
     const taxSlab = await TaxSlab.findOne({
         where: {
-            financial_year,
+            financial_year: financial_year as string,
             regime: (employee as any).tax_regime || 'new',
             is_active: true,
         },

@@ -34,7 +34,7 @@ export const submitReimbursement = async (req: AuthRequest, res: Response): Prom
     const { category, amount, description, receipt_url } = req.body;
 
     const reimbursement = await Reimbursement.create({
-        employee_id: req.user?.id,
+        employee_id: req.user!.id,
         category,
         amount,
         description,
@@ -56,7 +56,7 @@ export const approveReimbursement = async (req: AuthRequest, res: Response): Pro
         throw new AppError(403, 'Only HR can approve reimbursements');
     }
 
-    const reimbursement = await Reimbursement.findByPk(id);
+    const reimbursement = await Reimbursement.findByPk(id as string);
 
     if (!reimbursement) {
         throw new AppError(404, 'Reimbursement not found');
@@ -86,7 +86,7 @@ export const rejectReimbursement = async (req: AuthRequest, res: Response): Prom
         throw new AppError(403, 'Only HR can reject reimbursements');
     }
 
-    const reimbursement = await Reimbursement.findByPk(id);
+    const reimbursement = await Reimbursement.findByPk(id as string);
 
     if (!reimbursement) {
         throw new AppError(404, 'Reimbursement not found');

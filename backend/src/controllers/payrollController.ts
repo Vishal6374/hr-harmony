@@ -9,7 +9,7 @@ import Reimbursement from '../models/Reimbursement';
 import { AppError } from '../middleware/errorHandler';
 import { getDaysInMonth } from '../utils/helpers';
 
-export const getPayrollBatches = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getPayrollBatches = async (_req: AuthRequest, res: Response): Promise<void> => {
     const batches = await PayrollBatch.findAll({
         include: [
             { association: 'processor', attributes: ['id', 'name', 'email'] },
@@ -94,7 +94,7 @@ export const generatePayroll = async (req: AuthRequest, res: Response): Promise<
             },
         });
 
-        const presentDays = attendance.filter(a => a.status === 'present').length;
+        // const presentDays = attendance.filter(a => a.status === 'present').length;
         const halfDays = attendance.filter(a => a.status === 'half_day').length;
         const absentDays = attendance.filter(a => a.status === 'absent').length;
 
@@ -109,7 +109,7 @@ export const generatePayroll = async (req: AuthRequest, res: Response): Promise<
             where: {
                 employee_id: employee.id,
                 status: 'approved',
-                payroll_batch_id: null,
+                payroll_batch_id: null as any,
             },
         });
 
@@ -177,7 +177,7 @@ export const markPayrollPaid = async (req: AuthRequest, res: Response): Promise<
         throw new AppError(403, 'Only HR can mark payroll as paid');
     }
 
-    const batch = await PayrollBatch.findByPk(id);
+    const batch = await PayrollBatch.findByPk(id as string);
 
     if (!batch) {
         throw new AppError(404, 'Payroll batch not found');
@@ -260,7 +260,7 @@ export const updateSalarySlip = async (req: AuthRequest, res: Response): Promise
     const { id } = req.params;
     const { basicSalary, hra, da, reimbursements, deductions } = req.body;
 
-    const slip = await SalarySlip.findByPk(id);
+    const slip = await SalarySlip.findByPk(id as string);
     if (!slip) {
         throw new AppError(404, 'Salary slip not found');
     }

@@ -6,8 +6,8 @@ export const generateToken = (payload: {
     email: string;
     role: 'hr' | 'employee';
 }): string => {
-    return jwt.sign(payload, config.jwt.secret, {
-        expiresIn: config.jwt.expiresIn as string,
+    return jwt.sign(payload, config.jwt.secret as any, {
+        expiresIn: config.jwt.expiresIn as any,
     });
 };
 
@@ -15,8 +15,8 @@ export const generateRefreshToken = (payload: {
     id: string;
     email: string;
 }): string => {
-    return jwt.sign(payload, config.jwt.refreshSecret, {
-        expiresIn: config.jwt.refreshExpiresIn as string,
+    return jwt.sign(payload, config.jwt.refreshSecret as any, {
+        expiresIn: config.jwt.refreshExpiresIn as any,
     });
 };
 

@@ -32,7 +32,7 @@ export const getAllDesignations = async (req: AuthRequest, res: Response): Promi
 export const getDesignationById = async (req: AuthRequest, res: Response): Promise<void> => {
     const { id } = req.params;
 
-    const designation = await Designation.findByPk(id, {
+    const designation = await Designation.findByPk(id as string, {
         include: [
             { association: 'department', attributes: ['id', 'name', 'code'] },
         ],
@@ -67,7 +67,7 @@ export const updateDesignation = async (req: AuthRequest, res: Response): Promis
     const { id } = req.params;
     const { name, department_id, level, salary_range_min, salary_range_max, is_active } = req.body;
 
-    const designation = await Designation.findByPk(id);
+    const designation = await Designation.findByPk(id as string);
 
     if (!designation) {
         throw new AppError(404, 'Designation not found');
@@ -91,7 +91,7 @@ export const updateDesignation = async (req: AuthRequest, res: Response): Promis
 export const deleteDesignation = async (req: AuthRequest, res: Response): Promise<void> => {
     const { id } = req.params;
 
-    const designation = await Designation.findByPk(id);
+    const designation = await Designation.findByPk(id as string);
 
     if (!designation) {
         throw new AppError(404, 'Designation not found');

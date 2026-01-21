@@ -1,36 +1,47 @@
-import multer from 'multer';
+import multer, { FileFilterCallback } from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import type { Request } from 'express';
+
+// Resolve project root safely (ESM-friendly)
+const uploadsDir = path.resolve(process.cwd(), 'uploads');
 
 // Ensure uploads directory exists
-const uploadsDir = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
 // Configure storage
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: (_req, _file, cb) => {
     const dir = path.join(uploadsDir, 'documents');
+
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
+
     cb(null, dir);
   },
-  filename: (req, file, cb) => {
-    const uniqueName = `${uuidv4()}_${Date.now()}${path.extname(file.originalname)}`;
+
+  filename: (_req, file, cb) => {
+    const uniqueName = `${uuidv4()}-${Date.now()}${path.extname(
+      file.originalname
+    )}`;
     cb(null, uniqueName);
   },
 });
 
 // File filter
-const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const fileFilter = (
+  _req: Request,
+  file: Express.Multer.File,
+  cb: FileFilterCallback
+) => {
   const allowedMimes = [
     'application/pdf',
     'image/png',
     'image/jpeg',
-    'image/jpg',
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   ];
@@ -42,6 +53,7 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCa
   }
 };
 
+// Multer instance
 export const upload = multer({
   storage,
   fileFilter,

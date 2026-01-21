@@ -27,7 +27,7 @@ export const getPolicies = async (req: AuthRequest, res: Response): Promise<void
 export const getPolicyById = async (req: AuthRequest, res: Response): Promise<void> => {
     const { id } = req.params;
 
-    const policy = await Policy.findByPk(id);
+    const policy = await Policy.findByPk(id as string);
 
     if (!policy) {
         throw new AppError(404, 'Policy not found');
@@ -66,7 +66,7 @@ export const updatePolicy = async (req: AuthRequest, res: Response): Promise<voi
         throw new AppError(403, 'Only HR can update policies');
     }
 
-    const policy = await Policy.findByPk(id);
+    const policy = await Policy.findByPk(id as string);
 
     if (!policy) {
         throw new AppError(404, 'Policy not found');
@@ -94,7 +94,7 @@ export const deletePolicy = async (req: AuthRequest, res: Response): Promise<voi
         throw new AppError(403, 'Only HR can delete policies');
     }
 
-    const policy = await Policy.findByPk(id);
+    const policy = await Policy.findByPk(id as string);
 
     if (!policy) {
         throw new AppError(404, 'Policy not found');

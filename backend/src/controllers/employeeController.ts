@@ -52,7 +52,7 @@ export const getAllEmployees = async (req: AuthRequest, res: Response): Promise<
 export const getEmployeeById = async (req: AuthRequest, res: Response): Promise<void> => {
     const { id } = req.params;
 
-    const employee = await User.findByPk(id, {
+    const employee = await User.findByPk(id as string, {
         include: [
             { association: 'department' },
             { association: 'designation' },
@@ -134,7 +134,7 @@ export const updateEmployee = async (req: AuthRequest, res: Response): Promise<v
         salary,
     } = req.body;
 
-    const employee = await User.findByPk(id);
+    const employee = await User.findByPk(id as string);
 
     if (!employee) {
         throw new AppError(404, 'Employee not found');
@@ -163,7 +163,7 @@ export const updateEmployee = async (req: AuthRequest, res: Response): Promise<v
 export const deleteEmployee = async (req: AuthRequest, res: Response): Promise<void> => {
     const { id } = req.params;
 
-    const employee = await User.findByPk(id);
+    const employee = await User.findByPk(id as string);
 
     if (!employee) {
         throw new AppError(404, 'Employee not found');

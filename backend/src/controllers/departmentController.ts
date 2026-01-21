@@ -48,7 +48,7 @@ export const getAllDepartments = async (req: AuthRequest, res: Response): Promis
 export const getDepartmentById = async (req: AuthRequest, res: Response): Promise<void> => {
     const { id } = req.params;
 
-    const department = await Department.findByPk(id, {
+    const department = await Department.findByPk(id as string, {
         include: [
             { association: 'manager', attributes: ['id', 'name', 'email'] },
             { association: 'employees', attributes: ['id', 'name', 'email', 'employee_id'] },
@@ -83,7 +83,7 @@ export const updateDepartment = async (req: AuthRequest, res: Response): Promise
     const { id } = req.params;
     const { name, code, manager_id, is_active } = req.body;
 
-    const department = await Department.findByPk(id);
+    const department = await Department.findByPk(id as string);
 
     if (!department) {
         throw new AppError(404, 'Department not found');
@@ -105,7 +105,7 @@ export const updateDepartment = async (req: AuthRequest, res: Response): Promise
 export const deleteDepartment = async (req: AuthRequest, res: Response): Promise<void> => {
     const { id } = req.params;
 
-    const department = await Department.findByPk(id);
+    const department = await Department.findByPk(id as string);
 
     if (!department) {
         throw new AppError(404, 'Department not found');

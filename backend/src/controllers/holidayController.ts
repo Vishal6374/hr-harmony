@@ -29,7 +29,7 @@ export const getHolidays = async (req: AuthRequest, res: Response): Promise<void
 export const getHolidayById = async (req: AuthRequest, res: Response): Promise<void> => {
     const { id } = req.params;
 
-    const holiday = await Holiday.findByPk(id);
+    const holiday = await Holiday.findByPk(id as string);
 
     if (!holiday) {
         throw new AppError(404, 'Holiday not found');
@@ -69,7 +69,7 @@ export const updateHoliday = async (req: AuthRequest, res: Response): Promise<vo
         throw new AppError(403, 'Only HR can update holidays');
     }
 
-    const holiday = await Holiday.findByPk(id);
+    const holiday = await Holiday.findByPk(id as string);
 
     if (!holiday) {
         throw new AppError(404, 'Holiday not found');
@@ -99,7 +99,7 @@ export const deleteHoliday = async (req: AuthRequest, res: Response): Promise<vo
         throw new AppError(403, 'Only HR can delete holidays');
     }
 
-    const holiday = await Holiday.findByPk(id);
+    const holiday = await Holiday.findByPk(id as string);
 
     if (!holiday) {
         throw new AppError(404, 'Holiday not found');
