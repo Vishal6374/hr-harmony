@@ -5,6 +5,7 @@ import AttendanceLog from './AttendanceLog';
 import AttendanceSettings from './AttendanceSettings';
 import LeaveRequest from './LeaveRequest';
 import LeaveBalance from './LeaveBalance';
+import LeaveLimit from './LeaveLimit';
 import PayrollBatch from './PayrollBatch';
 import SalarySlip from './SalarySlip';
 import Reimbursement from './Reimbursement';
@@ -121,6 +122,7 @@ export {
     AttendanceSettings,
     LeaveRequest,
     LeaveBalance,
+    LeaveLimit,
     PayrollBatch,
     SalarySlip,
     Reimbursement,
@@ -147,6 +149,7 @@ export default {
     AttendanceSettings,
     LeaveRequest,
     LeaveBalance,
+    LeaveLimit,
     PayrollBatch,
     SalarySlip,
     Reimbursement,

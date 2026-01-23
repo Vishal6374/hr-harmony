@@ -46,18 +46,59 @@ export const getLeaveBalances = async (req: AuthRequest, res: Response): Promise
         const targetEmployeeId = req.user?.role === 'hr' && employee_id ? String(employee_id) : req.user?.id;
         const targetYear = year ? Number(year) : new Date().getFullYear();
 
-        console.log(`Fetching leave balances for employee: ${targetEmployeeId}, year: ${targetYear}`);
+        if (!targetEmployeeId) throw new AppError(400, 'Employee ID required');
 
-        const where: any = {
-            year: targetYear
-        };
-
-        if (targetEmployeeId) {
-            where.employee_id = targetEmployeeId;
+        // 1. Get Global Limits
+        const LeaveLimit = (await import('../models/LeaveLimit')).default;
+        let limits = await LeaveLimit.findOne();
+        if (!limits) {
+            limits = await LeaveLimit.create({ casual_leave: 12, sick_leave: 12, earned_leave: 15 });
         }
 
+        // 2. Get Existing Key Balances
+        const existingBalances = await LeaveBalance.findAll({
+            where: {
+                employee_id: targetEmployeeId,
+                year: targetYear
+            }
+        });
+
+        const leaveTypes = [
+            { type: 'casual', limit: limits.casual_leave },
+            { type: 'sick', limit: limits.sick_leave },
+            { type: 'earned', limit: limits.earned_leave }
+        ] as const;
+
+        // 3. Sync Balances
+        for (const { type, limit } of leaveTypes) {
+            let balance = existingBalances.find(b => b.leave_type === type);
+
+            if (balance) {
+                // Update total limit if changed by HR
+                if (balance.total !== limit) {
+                    balance.total = limit;
+                    balance.remaining = Math.max(0, limit - balance.used);
+                    await balance.save();
+                }
+            } else {
+                // Initialize if missing
+                await LeaveBalance.create({
+                    employee_id: targetEmployeeId,
+                    leave_type: type,
+                    year: targetYear,
+                    total: limit,
+                    used: 0,
+                    remaining: limit,
+                });
+            }
+        }
+
+        // 4. Return fresh list
         const balances = await LeaveBalance.findAll({
-            where,
+            where: {
+                employee_id: targetEmployeeId,
+                year: targetYear
+            },
             include: [
                 { association: 'employee', attributes: ['id', 'name', 'email', 'employee_id'] },
             ],
@@ -92,15 +133,27 @@ export const applyLeave = async (req: AuthRequest, res: Response): Promise<void>
             },
         });
 
-        // Auto-initialize balance if not found
+        // Auto-initialize balance if not found (using Limits)
         if (!balance) {
+            const LeaveLimit = (await import('../models/LeaveLimit')).default;
+            let limits = await LeaveLimit.findOne();
+            if (!limits) {
+                limits = await LeaveLimit.create({ casual_leave: 12, sick_leave: 12, earned_leave: 15 });
+            }
+
+            let limit = 0;
+            if (leave_type === 'casual') limit = limits.casual_leave;
+            else if (leave_type === 'sick') limit = limits.sick_leave;
+            else if (leave_type === 'privilege' || leave_type === 'earned') limit = limits.earned_leave;
+            else limit = 15; // default fallback
+
             balance = await LeaveBalance.create({
                 employee_id: employeeId,
                 leave_type,
                 year: startDate.getFullYear(),
-                total: 20, // Default annual quota
+                total: limit,
                 used: 0,
-                remaining: 20,
+                remaining: limit,
             });
         }
 

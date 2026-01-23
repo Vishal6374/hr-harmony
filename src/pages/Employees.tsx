@@ -10,20 +10,23 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Employee } from '@/types/hrms';
-import { Search, UserPlus, Eye, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { Search, UserPlus, Eye, Pencil, Loader2, UserX } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { employeeService, departmentService, designationService } from '@/services/apiService';
 import { toast } from 'sonner';
+import { TerminateEmployeeModal } from '@/components/employees/TerminateEmployeeModal';
 
 export default function Employees() {
   const { isHR } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('active'); // Default to active only
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+  const [isTerminateModalOpen, setIsTerminateModalOpen] = useState(false);
+  const [employeeToTerminate, setEmployeeToTerminate] = useState<any>(null);
 
   // Form Data
   const [formData, setFormData] = useState({
@@ -89,6 +92,17 @@ export default function Employees() {
     onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to update employee'),
   });
 
+  const terminateMutation = useMutation({
+    mutationFn: ({ id, data }: any) => employeeService.terminate(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      setIsTerminateModalOpen(false);
+      setEmployeeToTerminate(null);
+      toast.success('Employee terminated successfully');
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to terminate employee'),
+  });
+
   const resetForm = () => {
     setSelectedEmployee(null);
     setFormData({
@@ -133,6 +147,17 @@ export default function Employees() {
     }
   };
 
+  const handleTerminate = (emp: any) => {
+    setEmployeeToTerminate(emp);
+    setIsTerminateModalOpen(true);
+  };
+
+  const handleConfirmTerminate = (data: any) => {
+    if (employeeToTerminate) {
+      terminateMutation.mutate({ id: employeeToTerminate.id, data });
+    }
+  };
+
   const columns: Column<Employee>[] = [
     {
       key: 'employee',
@@ -159,9 +184,14 @@ export default function Employees() {
       header: '',
       cell: (emp) => (
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(emp)}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(emp)} title="Edit">
             <Pencil className="w-4 h-4" />
           </Button>
+          {emp.status !== 'terminated' && (
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-orange-600 hover:text-orange-700 hover:bg-orange-50" onClick={() => handleTerminate(emp)} title="Terminate">
+              <UserX className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       ),
       className: 'w-[100px]',
@@ -227,6 +257,7 @@ export default function Employees() {
               <SelectItem value="active">Active</SelectItem>
               <SelectItem value="on_leave">On Leave</SelectItem>
               <SelectItem value="inactive">Inactive</SelectItem>
+              <SelectItem value="terminated">Terminated</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -363,6 +394,17 @@ export default function Employees() {
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* Terminate Employee Modal */}
+        {employeeToTerminate && (
+          <TerminateEmployeeModal
+            open={isTerminateModalOpen}
+            onOpenChange={setIsTerminateModalOpen}
+            employee={employeeToTerminate}
+            onConfirm={handleConfirmTerminate}
+            isLoading={terminateMutation.isPending}
+          />
+        )}
       </div>
     </MainLayout>
   );

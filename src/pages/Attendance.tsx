@@ -82,11 +82,11 @@ export default function Attendance() {
     },
   });
 
-  // Fetch employees for HR
+  // Fetch employees for HR (only active employees)
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
     queryFn: async () => {
-      const { data } = await employeeService.getAll();
+      const { data } = await employeeService.getAll({ status: 'active' });
       return data.employees || [];
     },
     enabled: isHR,
@@ -261,7 +261,7 @@ export default function Attendance() {
                           </div>
                         )}
                         {!attendanceToday.check_out && (
-                          <Button variant="destructive" className="w-full h-12 text-base sm:text-lg font-semibold shadow-lg hover:shadow-xl transition-all" onClick={() => markAttendanceMutation.mutate({ status: 'present', date: format(new Date(), 'yyyy-MM-dd'), check_out: new Date().toISOString() })} disabled={markAttendanceMutation.isPending}>
+                          <Button variant="destructive" className="w-full h-12 text-base sm:text-lg font-semibold shadow-lg hover:shadow-xl transition-all" onClick={() => markAttendanceMutation.mutate({ date: format(new Date(), 'yyyy-MM-dd'), check_out: new Date().toISOString() })} disabled={markAttendanceMutation.isPending}>
                             <Clock className="w-4 h-4 mr-2" />
                             {markAttendanceMutation.isPending ? 'Processing...' : 'Clock Out'}
                           </Button>
@@ -364,13 +364,56 @@ export default function Attendance() {
             <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="px-3 py-1 border rounded-md text-sm" />
           </CardHeader>
           <CardContent>
+            {/* Legend */}
+            {!isHR && (
+              <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+                <div className="flex flex-wrap gap-3 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-pink-600">H</span>
+                    <span className="text-muted-foreground">Holiday</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-slate-600">WO</span>
+                    <span className="text-muted-foreground">Week Off</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-blue-600">L</span>
+                    <span className="text-muted-foreground">Leave</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-green-600">P</span>
+                    <span className="text-muted-foreground">Present</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-amber-600">OD</span>
+                    <span className="text-muted-foreground">On Duty</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-orange-600">CO</span>
+                    <span className="text-muted-foreground">Comp Off</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-red-600">AB</span>
+                    <span className="text-muted-foreground">Absent</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-purple-600">AEYP</span>
+                    <span className="text-muted-foreground">Attendance entries yet to be processed</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-2">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                <div key={day} className="text-center text-xs font-medium text-muted-foreground p-2">{day}</div>
+              {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                <div key={day} className="text-center text-xs font-semibold text-foreground p-2 bg-muted/30 rounded">
+                  {day}
+                </div>
               ))}
             </div>
             <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
-              {Array.from({ length: monthStart.getDay() }).map((_, i) => (
+              {/* Adjust for Monday start */}
+              {Array.from({ length: (monthStart.getDay() + 6) % 7 }).map((_, i) => (
                 <div key={`empty-${i}`} className="aspect-square" />
               ))}
               {daysInMonth.map((date) => {
@@ -378,36 +421,125 @@ export default function Attendance() {
                 const userLog = dayLogs.find((log: any) => log.employee_id === user?.id);
                 const holiday = holidays.find((h: any) => isSameDay(new Date(h.date), date));
                 const presentCount = dayLogs.filter((log: any) => log.status === 'present').length;
+                const isWeekendDay = isWeekend(date);
+                const isPastDate = isBefore(date, startOfDay(today));
+                const isTodayDate = isSameDay(date, today);
+
+                // Get status label for employee view
+                const getStatusLabel = () => {
+                  if (holiday) return { label: 'H', color: 'text-pink-600 bg-pink-50', fullLabel: 'H : H' };
+                  if (isWeekendDay) return { label: 'WO', color: 'text-slate-600 bg-blue-100', fullLabel: 'WO : WO' };
+                  if (!userLog && !isPastDate) return null;
+
+                  switch (userLog?.status) {
+                    case 'present':
+                      return { label: 'P', color: 'text-green-600 bg-green-50', fullLabel: 'P : P' };
+                    case 'absent':
+                      return { label: 'AB', color: 'text-red-600 bg-red-50', fullLabel: 'AB : AB' };
+                    case 'half_day':
+                      // Determine if present in morning or afternoon based on check-in time
+                      // If check-in is before 1 PM (13:00), assume Morning Present (P : AB)
+                      // Otherwise assume Afternoon Present (AB : P)
+                      const checkInHour = userLog.check_in ? new Date(userLog.check_in).getHours() : 9;
+                      const isMorningPresent = checkInHour < 13;
+                      return {
+                        label: 'HD',
+                        color: 'text-amber-600 bg-amber-50',
+                        fullLabel: isMorningPresent ? 'P : AB' : 'AB : P'
+                      };
+                    case 'on_leave':
+                      return { label: 'L', color: 'text-blue-600 bg-blue-50', fullLabel: 'L : L' };
+                    default:
+                      // If past date and no log, assumed absent
+                      if (isPastDate && !userLog) return { label: 'AB', color: 'text-red-600 bg-red-50', fullLabel: 'AB : AB' };
+                      return null;
+                  }
+                };
+
+                const statusInfo = getStatusLabel();
 
                 return (
                   <div
                     key={date.toISOString()}
                     onClick={() => handleDateClick(date)}
                     className={cn(
-                      'aspect-square p-1 border rounded-lg flex flex-col items-center justify-center relative group transition-all',
+                      'aspect-square p-1.5 border rounded-lg flex flex-col relative group transition-all min-h-[80px]',
                       isHR && 'cursor-pointer hover:border-primary hover:shadow-md',
-                      isWeekend(date) && 'bg-muted/50',
-                      holiday && 'bg-amber-50 border-amber-200',
-                      isSameDay(date, today) && 'ring-2 ring-primary'
+                      isWeekendDay && 'bg-blue-50/50 border-blue-200',
+                      holiday && 'bg-pink-50 border-pink-200',
+                      isTodayDate && 'ring-2 ring-primary ring-offset-1',
+                      !isHR && statusInfo && statusInfo.color.includes('bg-') && statusInfo.color.split(' ')[1]
                     )}
                     title={holiday?.name || ''}
                   >
-                    <span className={cn("text-xs font-medium", holiday && "text-amber-700")}>{format(date, 'd')}</span>
-                    {isHR ? (
-                      presentCount > 0 && <span className="text-[10px] text-green-600 font-semibold">{presentCount}</span>
-                    ) : (
-                      userLog && <div className={cn('w-2 h-2 rounded-full mt-1', getStatusColor(userLog.status))} />
+                    {/* Date number */}
+                    <div className="flex justify-between items-start mb-1">
+                      <span className={cn(
+                        "text-xs font-semibold",
+                        holiday && "text-pink-700",
+                        isWeekendDay && !holiday && "text-slate-600",
+                        isTodayDate && "text-primary"
+                      )}>
+                        {format(date, 'd')}
+                      </span>
+                      {isTodayDate && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                      )}
+                    </div>
+
+                    {/* Employee View - Status Labels */}
+                    {!isHR && (
+                      <div className="flex-1 flex flex-col justify-center items-center gap-0.5">
+                        {holiday && (
+                          <div className="text-center">
+                            <div className="text-xs font-bold text-pink-600">H : H</div>
+                          </div>
+                        )}
+                        {!holiday && isWeekendDay && (
+                          <div className="text-center">
+                            <div className="text-xs font-bold text-slate-600">WO : WO</div>
+                          </div>
+                        )}
+                        {!holiday && !isWeekendDay && statusInfo && (
+                          <div className="text-center">
+                            <div className={cn("text-xs font-bold", statusInfo.color.split(' ')[0])}>
+                              {statusInfo.fullLabel}
+                            </div>
+                            {userLog?.check_in && (
+                              <div className="text-[9px] text-muted-foreground mt-0.5">
+                                {format(new Date(userLog.check_in), 'HH:mm')} - {userLog.check_out ? format(new Date(userLog.check_out), 'HH:mm') : ''}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* HR View - Present Count */}
+                    {isHR && (
+                      <div className="flex-1 flex items-center justify-center">
+                        {holiday && (
+                          <span className="text-[10px] font-semibold text-pink-600">{holiday.name}</span>
+                        )}
+                        {!holiday && presentCount > 0 && (
+                          <span className="text-sm font-semibold text-green-600">{presentCount}</span>
+                        )}
+                      </div>
                     )}
                   </div>
                 );
               })}
             </div>
-            <div className="flex flex-wrap gap-4 mt-6 pt-4 border-t">
-              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-green-500" /><span className="text-xs">Present</span></div>
-              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-destructive" /><span className="text-xs">Absent</span></div>
-              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-amber-500" /><span className="text-xs">Half Day</span></div>
-              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-blue-500" /><span className="text-xs">On Leave</span></div>
-            </div>
+
+            {/* Legend for HR */}
+            {isHR && (
+              <div className="flex flex-wrap gap-4 mt-6 pt-4 border-t">
+                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-green-500" /><span className="text-xs">Present</span></div>
+                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-destructive" /><span className="text-xs">Absent</span></div>
+                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-amber-500" /><span className="text-xs">Half Day</span></div>
+                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-blue-500" /><span className="text-xs">On Leave</span></div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -23,7 +23,7 @@ export default function Reimbursements() {
   const [selectedReimburse, setSelectedReimburse] = useState<any>(null);
   const [formData, setFormData] = useState({
     amount: '',
-    category: 'Travel',
+    category: 'travel',
     description: '',
     receipt_url: ''
   });
@@ -79,7 +79,7 @@ export default function Reimbursements() {
   });
 
   const resetForm = () => {
-    setFormData({ amount: '', category: 'Travel', description: '', receipt_url: '' });
+    setFormData({ amount: '', category: 'travel', description: '', receipt_url: '' });
   };
 
   const openCreateDialog = () => {
@@ -246,11 +246,11 @@ export default function Reimbursements() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Travel">Travel</SelectItem>
-                    <SelectItem value="Food">Food</SelectItem>
-                    <SelectItem value="Lodging">Lodging</SelectItem>
-                    <SelectItem value="Equipment">Equipment</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
+                    <SelectItem value="travel">Travel</SelectItem>
+                    <SelectItem value="event">Event</SelectItem>
+                    <SelectItem value="medical">Medical</SelectItem>
+                    <SelectItem value="equipment">Equipment</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

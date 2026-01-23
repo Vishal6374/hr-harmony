@@ -18,7 +18,14 @@ export const generateEmployeeId = async (): Promise<string> => {
 };
 
 export const calculateWorkHours = (checkIn: Date, checkOut: Date): number => {
-    const diff = checkOut.getTime() - checkIn.getTime();
+    let diff = checkOut.getTime() - checkIn.getTime();
+
+    // Handle overnight shift: If checkout is before checkin, assume next day
+    if (diff < 0) {
+        // Add 24 hours in milliseconds
+        diff += 24 * 60 * 60 * 1000;
+    }
+
     return Math.round((diff / (1000 * 60 * 60)) * 100) / 100;
 };
 

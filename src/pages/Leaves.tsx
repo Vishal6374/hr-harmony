@@ -9,10 +9,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LeaveRequest } from '@/types/hrms';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, CalendarDays, Check, X, Clock } from 'lucide-react';
+import { Plus, CalendarDays, Check, X, Clock, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { leaveService, employeeService } from '@/services/apiService';
+import { leaveService, employeeService, leaveLimitService } from '@/services/apiService';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,9 @@ export default function Leaves() {
 
   // New hooks moved from bottom
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [leaveLimits, setLeaveLimits] = useState({ casual_leave: 12, sick_leave: 12, earned_leave: 15 });
+
   const [formData, setFormData] = useState({
     leave_type: 'sick',
     start_date: '',
@@ -41,6 +44,34 @@ export default function Leaves() {
       });
       return data;
     },
+  });
+
+  // Fetch leave limits
+  useQuery({
+    queryKey: ['leave-limits'],
+    queryFn: async () => {
+      const { data } = await leaveLimitService.get();
+      if (data) {
+        setLeaveLimits({
+          casual_leave: data.casual_leave,
+          sick_leave: data.sick_leave,
+          earned_leave: data.earned_leave // Map based on DB/API field names usually
+        });
+      }
+      return data;
+    },
+    enabled: isHR && isSettingsOpen,
+  });
+
+  // Update Leave Limits Mutation
+  const updateLimitsMutation = useMutation({
+    mutationFn: (data: any) => leaveLimitService.update(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leave-limits'] });
+      setIsSettingsOpen(false);
+      toast.success('Leave limits updated successfully');
+    },
+    onError: (error: any) => toast.error('Failed to update leave limits'),
   });
 
   // Fetch leave balances
@@ -96,6 +127,11 @@ export default function Leaves() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     applyMutation.mutate(formData);
+  };
+
+  const handleUpdateLimits = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateLimitsMutation.mutate(leaveLimits);
   };
 
   const myLeaves = leaves.filter((l: any) => l.employee_id === user?.id);
@@ -194,6 +230,12 @@ export default function Leaves() {
       <div className="space-y-4 sm:space-y-6 animate-fade-in">
         <PageHeader title="Leaves" description={isHR ? 'Manage employee leave requests' : 'Apply and track your leaves'}>
           {!isHR && <Button onClick={() => setIsDialogOpen(true)}><Plus className="w-4 h-4 mr-2" />Apply Leave</Button>}
+          {isHR && (
+            <Button variant="outline" onClick={() => setIsSettingsOpen(true)}>
+              <Settings className="w-4 h-4 mr-2" />
+              Settings
+            </Button>
+          )}
         </PageHeader>
 
         {/* ... existing Cards ... */}
@@ -268,7 +310,7 @@ export default function Leaves() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="sick">Sick Leave</SelectItem>
-                    <SelectItem value="privilege">Privilege Leave</SelectItem>
+                    <SelectItem value="earned">Privilege / Earned Leave</SelectItem>
                     <SelectItem value="casual">Casual Leave</SelectItem>
                   </SelectContent>
                 </Select>
@@ -290,6 +332,57 @@ export default function Leaves() {
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
                 <Button type="submit" disabled={applyMutation.isPending}>{applyMutation.isPending ? 'Submitting...' : 'Submit Request'}</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Leave Limits Settings Dialog - HR Only */}
+        <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Leave Policy Settings</DialogTitle>
+              <DialogDescription>Set the annual leave limits for all employees.</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleUpdateLimits} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="casual">Casual Leave (Days/Year)</Label>
+                <Input
+                  id="casual"
+                  type="number"
+                  min="0"
+                  value={leaveLimits.casual_leave}
+                  onChange={(e) => setLeaveLimits({ ...leaveLimits, casual_leave: Number(e.target.value) })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sick">Sick Leave (Days/Year)</Label>
+                <Input
+                  id="sick"
+                  type="number"
+                  min="0"
+                  value={leaveLimits.sick_leave}
+                  onChange={(e) => setLeaveLimits({ ...leaveLimits, sick_leave: Number(e.target.value) })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="earned">Earned/Privilege Leave (Days/Year)</Label>
+                <Input
+                  id="earned"
+                  type="number"
+                  min="0"
+                  value={leaveLimits.earned_leave}
+                  onChange={(e) => setLeaveLimits({ ...leaveLimits, earned_leave: Number(e.target.value) })}
+                  required
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsSettingsOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={updateLimitsMutation.isPending}>
+                  {updateLimitsMutation.isPending ? 'Saving...' : 'Save Settings'}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>

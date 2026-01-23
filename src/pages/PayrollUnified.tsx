@@ -4,16 +4,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 
-// Import all payroll sub-pages
-import PayrollDashboard from './payroll/PayrollDashboard';
-import EmployeeSalaryManager from './payroll/EmployeeSalaryManager';
-import RunPayrollWizard from './payroll/RunPayrollWizard';
-import TaxWorksheet from './payroll/TaxWorksheet';
-import InvestmentDeclaration from './payroll/InvestmentDeclaration';
-import LoanAdvanceRequest from './payroll/LoanAdvanceRequest';
-
-// Import the original payroll slips view
-import OriginalPayrollView from './PayrollOriginal';
+// Import simplified payroll components
+import PayrollDashboardSimple from './payroll/PayrollDashboardSimple';
+import PayrollProcess from './payroll/PayrollProcess';
+import MyPayslips from './payroll/MyPayslips';
+import BasicPayManager from './payroll/BasicPayManager';
 
 export default function PayrollUnified() {
     const { isHR } = useAuth();
@@ -29,73 +24,32 @@ export default function PayrollUnified() {
             <div className="space-y-6 animate-fade-in max-w-7xl mx-auto">
                 <PageHeader
                     title="Payroll Management"
-                    description={isHR ? "Manage and process payroll" : "View your salary and tax information"}
+                    description={isHR ? "Process payroll for employees" : "View your salary slips"}
                 />
 
-                <Tabs value={activeTab} onValueChange={handleTabChange}>
-                    <div className="flex justify-center">
-                        <TabsList className="grid" style={{ gridTemplateColumns: isHR ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)' }}>
-                            {isHR ? (
-                                <>
-                                    <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-                                    <TabsTrigger value="run-payroll">Run Payroll</TabsTrigger>
-                                    <TabsTrigger value="fixed-salary">Fixed Salary</TabsTrigger>
-                                    <TabsTrigger value="salary-register">Salary Register</TabsTrigger>
-                                    <TabsTrigger value="loan-advance">Loan/Advance</TabsTrigger>
-                                </>
-                            ) : (
-                                <>
-                                    <TabsTrigger value="my-payslips">My Payslips</TabsTrigger>
-                                    <TabsTrigger value="tax-worksheet">Tax Worksheet</TabsTrigger>
-                                    <TabsTrigger value="investments">Investments</TabsTrigger>
-                                    <TabsTrigger value="loan-advance">Loan/Advance</TabsTrigger>
-                                </>
-                            )}
+                {isHR ? (
+                    <Tabs value={activeTab} onValueChange={handleTabChange}>
+                        <TabsList className="grid w-full grid-cols-3">
+                            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+                            <TabsTrigger value="basic-pay">Basic Pay</TabsTrigger>
+                            <TabsTrigger value="process">Process Payroll</TabsTrigger>
                         </TabsList>
-                    </div>
 
-                    {isHR ? (
-                        <>
-                            <TabsContent value="dashboard" className="mt-6">
-                                <PayrollDashboard />
-                            </TabsContent>
+                        <TabsContent value="dashboard" className="mt-6">
+                            <PayrollDashboardSimple />
+                        </TabsContent>
 
-                            <TabsContent value="run-payroll" className="mt-6">
-                                <RunPayrollWizard />
-                            </TabsContent>
+                        <TabsContent value="basic-pay" className="mt-6">
+                            <BasicPayManager />
+                        </TabsContent>
 
-                            <TabsContent value="fixed-salary" className="mt-6">
-                                <EmployeeSalaryManager />
-                            </TabsContent>
-
-                            <TabsContent value="salary-register" className="mt-6">
-                                <OriginalPayrollView />
-                            </TabsContent>
-
-                            <TabsContent value="loan-advance" className="mt-6">
-                                <LoanAdvanceRequest />
-                            </TabsContent>
-                        </>
-                    ) : (
-                        <>
-                            <TabsContent value="my-payslips" className="mt-6">
-                                <OriginalPayrollView />
-                            </TabsContent>
-
-                            <TabsContent value="tax-worksheet" className="mt-6">
-                                <TaxWorksheet />
-                            </TabsContent>
-
-                            <TabsContent value="investments" className="mt-6">
-                                <InvestmentDeclaration />
-                            </TabsContent>
-
-                            <TabsContent value="loan-advance" className="mt-6">
-                                <LoanAdvanceRequest />
-                            </TabsContent>
-                        </>
-                    )}
-                </Tabs>
+                        <TabsContent value="process" className="mt-6">
+                            <PayrollProcess />
+                        </TabsContent>
+                    </Tabs>
+                ) : (
+                    <MyPayslips />
+                )}
             </div>
         </MainLayout>
     );

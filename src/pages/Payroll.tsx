@@ -44,11 +44,11 @@ export default function Payroll() {
     enabled: isHR,
   });
 
-  // Fetch employees for HR view
+  // Fetch employees for HR view (only active)
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
     queryFn: async () => {
-      const { data } = await employeeService.getAll();
+      const { data } = await employeeService.getAll({ status: 'active' });
       return data.employees || [];
     },
     enabled: isHR,

@@ -29,6 +29,7 @@ export const getAllDepartments = async (req: AuthRequest, res: Response): Promis
                         FROM users
                         WHERE
                             users.department_id = Department.id
+                            AND users.status != 'terminated'
                     )`),
                     'employee_count'
                 ]
@@ -51,7 +52,12 @@ export const getDepartmentById = async (req: AuthRequest, res: Response): Promis
     const department = await Department.findByPk(id as string, {
         include: [
             { association: 'manager', attributes: ['id', 'name', 'email'] },
-            { association: 'employees', attributes: ['id', 'name', 'email', 'employee_id'] },
+            {
+                association: 'employees',
+                attributes: ['id', 'name', 'email', 'employee_id'],
+                where: { status: { [Op.ne]: 'terminated' } },
+                required: false // Left join to include departments even if no active employees
+            },
         ],
     });
 
@@ -111,8 +117,13 @@ export const deleteDepartment = async (req: AuthRequest, res: Response): Promise
         throw new AppError(404, 'Department not found');
     }
 
-    // Check if department has employees
-    const employeeCount = await User.count({ where: { department_id: id } });
+    // Check if department has active employees
+    const employeeCount = await User.count({
+        where: {
+            department_id: id,
+            status: { [Op.ne]: 'terminated' }
+        }
+    });
 
     if (employeeCount > 0) {
         throw new AppError(400, 'Cannot delete department with employees');

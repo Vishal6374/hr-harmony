@@ -19,11 +19,11 @@ export default function EmployeeSalaryManager() {
 
     const queryClient = useQueryClient();
 
-    // Fetch Employees
+    // Fetch Employees (only active)
     const { data: employees = [], isLoading } = useQuery({
         queryKey: ['employees'],
         queryFn: async () => {
-            const { data } = await employeeService.getAll();
+            const { data } = await employeeService.getAll({ status: 'active' });
             return data.employees || [];
         },
     });

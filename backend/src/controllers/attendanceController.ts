@@ -33,7 +33,12 @@ export const getAttendanceLogs = async (req: AuthRequest, res: Response): Promis
     const logs = await AttendanceLog.findAll({
         where,
         include: [
-            { association: 'employee', attributes: ['id', 'name', 'email', 'employee_id'] },
+            {
+                association: 'employee',
+                attributes: ['id', 'name', 'email', 'employee_id', 'status'],
+                where: { status: { [Op.ne]: 'terminated' } }, // Exclude terminated employees
+                required: true // Inner join to exclude logs of terminated employees
+            },
         ],
         order: [['date', 'DESC']],
     });
@@ -78,26 +83,36 @@ export const markAttendance = async (req: AuthRequest, res: Response): Promise<v
             });
         }
 
-        // Calculate work hours if both check_in and check_out are provided
+        // Calculate work hours
+        // Use provided check_in OR existing check_in
+        const actualCheckIn = check_in ? new Date(check_in) : existingLog?.check_in;
+        // Use provided check_out OR existing check_out
+        const actualCheckOut = check_out ? new Date(check_out) : existingLog?.check_out;
+
         let workHours: number | undefined;
-        if (check_in && check_out) {
-            workHours = calculateWorkHours(new Date(check_in), new Date(check_out));
+        if (actualCheckIn && actualCheckOut) {
+            workHours = calculateWorkHours(actualCheckIn, actualCheckOut);
         }
 
         // Determine status based on settings
         let attendanceStatus = status;
-        if (!attendanceStatus) {
+
+        // Auto-calculate status if we have enough info and status isn't forced by HR
+        if (!attendanceStatus && actualCheckIn && actualCheckOut && workHours !== undefined) {
+            // Use settings to determine status
+            if (workHours < settings.half_day_threshold) {
+                attendanceStatus = 'absent';
+            } else if (workHours >= settings.half_day_threshold && workHours < settings.standard_work_hours) {
+                attendanceStatus = 'half_day';
+            } else {
+                attendanceStatus = 'present';
+            }
+        } else if (!attendanceStatus) {
             if (isWeekend(new Date(attendanceDate))) {
                 attendanceStatus = 'weekend';
-            } else if (check_in && check_out && workHours !== undefined) {
-                // Use settings to determine status
-                if (workHours < settings.half_day_threshold) {
-                    attendanceStatus = 'absent';
-                } else if (workHours >= settings.half_day_threshold && workHours < settings.standard_work_hours) {
-                    attendanceStatus = 'half_day';
-                } else {
-                    attendanceStatus = 'present';
-                }
+            } else if (check_in && !check_out) {
+                // If only clocking in, assume present until clock out (or set initial status)
+                attendanceStatus = 'present';
             } else {
                 attendanceStatus = 'absent';
             }

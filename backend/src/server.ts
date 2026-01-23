@@ -2,6 +2,7 @@ import app from './app';
 import { config } from './config';
 import { testConnection, syncDatabase } from './config/database';
 import './models'; // Import models to register associations
+import { scheduleAutoAbsent } from './utils/autoAbsentScheduler';
 
 const startServer = async () => {
     try {
@@ -11,6 +12,9 @@ const startServer = async () => {
         // Sync database with alter mode (updates tables safely without data loss)
         await syncDatabase(false, true); // force=false, alter=true
         console.log('✅ Database sync completed successfully');
+
+        // Initialize auto-absent scheduler
+        scheduleAutoAbsent();
 
         // Start server
         app.listen(config.port, () => {

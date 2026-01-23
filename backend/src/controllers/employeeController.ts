@@ -196,10 +196,24 @@ export const permanentlyDeleteEmployee = async (req: AuthRequest, res: Response)
         throw new AppError(404, 'Employee not found');
     }
 
-    // Hard delete - permanently remove from database
-    await employee.destroy();
+    try {
+        // Hard delete - permanently remove from database
+        await employee.destroy();
 
-    res.json({ message: 'Employee permanently deleted from system' });
+        res.json({ message: 'Employee permanently deleted from system' });
+    } catch (error: any) {
+        console.error('Error permanently deleting employee:', error);
+
+        // Check if it's a foreign key constraint error
+        if (error.name === 'SequelizeForeignKeyConstraintError' || error.original?.code === 'ER_ROW_IS_REFERENCED_2') {
+            throw new AppError(
+                400,
+                'Cannot permanently delete employee. Employee has associated records (attendance, leaves, payroll, etc.). Please use "Terminate" instead to preserve data while revoking access.'
+            );
+        }
+
+        throw new AppError(500, 'Failed to permanently delete employee: ' + (error.message || 'Unknown error'));
+    }
 };
 
 // Soft delete (kept for backward compatibility)

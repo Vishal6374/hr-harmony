@@ -17,7 +17,7 @@ export function DeleteEmployeeModal({
     employee,
     onConfirm,
     isLoading,
-    isPermanent = false,
+    isPermanent = true, // Default to permanent deletion
 }: DeleteEmployeeModalProps) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
