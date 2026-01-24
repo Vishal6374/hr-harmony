@@ -25,6 +25,7 @@ import { Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { departmentService } from '@/services/apiService';
 import { toast } from 'sonner';
+import { PageLoader } from '@/components/ui/page-loader';
 
 export default function Departments() {
   const { isHR } = useAuth();
@@ -186,13 +187,7 @@ export default function Departments() {
   ];
 
   if (isLoading) {
-    return (
-      <MainLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      </MainLayout>
-    );
+    return <PageLoader />;
   }
 
   return (

@@ -25,6 +25,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { holidayService } from '@/services/apiService';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { toast } from 'sonner';
+import { PageLoader } from '@/components/ui/page-loader';
 
 export default function Holidays() {
   const { isHR } = useAuth();
@@ -177,13 +178,7 @@ export default function Holidays() {
   }
 
   if (isLoading) {
-    return (
-      <MainLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      </MainLayout>
-    );
+    return <PageLoader />;
   }
 
   return (

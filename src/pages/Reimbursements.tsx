@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { reimbursementService } from '@/services/apiService';
 import { toast } from 'sonner';
+import { PageLoader } from '@/components/ui/page-loader';
 
 export default function Reimbursements() {
   const { isHR, user } = useAuth();
@@ -159,13 +160,7 @@ export default function Reimbursements() {
   ];
 
   if (isLoading) {
-    return (
-      <MainLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      </MainLayout>
-    );
+    return <PageLoader />;
   }
 
   const myReimbursements = reimbursements.filter((r: any) => r.employee_id === user?.id);

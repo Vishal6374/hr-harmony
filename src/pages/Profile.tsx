@@ -36,6 +36,7 @@ import {
   X
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { PageLoader } from '@/components/ui/page-loader';
 
 export default function Profile() {
   const { user } = useAuth();
@@ -159,13 +160,7 @@ export default function Profile() {
   };
 
   if (isLoading) {
-    return (
-      <MainLayout>
-        <div className="flex items-center justify-center h-[calc(100vh-200px)]">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      </MainLayout>
-    );
+    return <PageLoader />;
   }
 
   if (!employee) {

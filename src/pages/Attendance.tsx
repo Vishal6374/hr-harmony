@@ -17,6 +17,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AttendanceEditModal } from '@/components/attendance/AttendanceEditModal';
 import { AttendanceSettings } from '@/components/attendance/AttendanceSettings';
 import { MarkAttendanceModal } from '@/components/attendance/MarkAttendanceModal';
+import { PageLoader } from '@/components/ui/page-loader';
 
 export default function Attendance() {
   const { isHR, user } = useAuth();
@@ -189,13 +190,7 @@ export default function Attendance() {
   const selectedDateLogs = selectedDate ? getAttendanceForDate(selectedDate) : [];
 
   if (logsLoading) {
-    return (
-      <MainLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-muted-foreground">Loading attendance...</div>
-        </div>
-      </MainLayout>
-    );
+    return <PageLoader />;
   }
 
   return (

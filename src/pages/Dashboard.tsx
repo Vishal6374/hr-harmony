@@ -23,6 +23,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { format, subDays, startOfMonth, endOfMonth, isAfter } from 'date-fns';
+import { PageLoader } from '@/components/ui/page-loader';
 
 export default function Dashboard() {
   const { isHR, user } = useAuth();
@@ -244,13 +245,7 @@ export default function Dashboard() {
   ] : [];
 
   if (isLoading) {
-    return (
-      <MainLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-muted-foreground">Loading...</div>
-        </div>
-      </MainLayout>
-    );
+    return <PageLoader />;
   }
 
   return (

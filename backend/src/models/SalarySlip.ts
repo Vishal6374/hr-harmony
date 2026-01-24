@@ -137,7 +137,7 @@ SalarySlip.init(
         },
         deductions: {
             type: DataTypes.JSON,
-            allowNull: false,
+            allowNull: true,
             defaultValue: { pf: 0, tax: 0, loss_of_pay: 0, other: 0 },
         },
         gross_salary: {

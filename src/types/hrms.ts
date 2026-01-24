@@ -47,6 +47,8 @@ export interface Employee {
   status: 'active' | 'inactive' | 'on_leave' | 'terminated';
   address: string;
   avatar?: string;
+  department?: Department;
+  designation?: Designation;
 }
 
 export type AttendanceStatus = 'present' | 'absent' | 'half_day' | 'on_leave' | 'holiday' | 'weekend';
