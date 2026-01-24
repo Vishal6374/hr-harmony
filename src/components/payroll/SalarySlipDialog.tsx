@@ -64,16 +64,33 @@ export function SalarySlipDialog({
         window.print();
     };
 
+    // Cast to any to handle mixed old/new data structures without strict type errors
+    const slipData = slip as any;
+
+    // Helper to safely get Number values
+    const getVal = (val: any) => Number(val || 0);
+
+    // Consolidated values (handling legacy vs new structure)
+    const basic = getVal(slipData.basic_salary);
+    const hra = getVal(slipData.hra);
+    const da = getVal(slipData.da);
+    const reimbursements = getVal(slipData.reimbursements);
+    const bonus = getVal(slipData.bonus); // Legacy support
+
+    const pf = getVal(slipData.deductions?.pf);
+    const tax = getVal(slipData.deductions?.tax);
+    const lop = getVal(slipData.deductions?.loss_of_pay) || getVal(slipData.lop); // Legacy support
+    const otherDeductions = getVal(slipData.deductions?.other) || getVal(slipData.other_deductions); // Legacy support
+
+    const totalEarnings = basic + hra + da + reimbursements + bonus;
+    const totalDeductions = pf + tax + lop + otherDeductions;
+    // Use slip.net_salary if reliable, otherwise recalc? Stick to slip.net_salary for consistency with DB
+    const netSalary = getVal(slipData.net_salary);
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            {/* Changes made here:
-               1. max-w-3xl: Sets a wider fixed width
-               2. h-[85vh]: Sets a fixed height (85% of viewport)
-               3. flex flex-col: Allows us to separate header, scrollable body, and footer
-               4. p-0: Removes default padding so we can control it manually
-            */}
             <DialogContent className="max-w-3xl w-full h-[85vh] flex flex-col p-0 overflow-hidden sm:rounded-lg">
-                
+
                 {/* Print Styles */}
                 <style>{`
                     @media print {
@@ -91,7 +108,6 @@ export function SalarySlipDialog({
                             z-index: 9999;
                         }
                         .animate-fade-in { display: none; }
-                        /* Hide the scrollbar container styles in print */
                         .dialog-content-wrapper { overflow: visible !important; height: auto !important; }
                     }
                 `}</style>
@@ -101,24 +117,17 @@ export function SalarySlipDialog({
                     <DialogTitle>Salary Slip Preview</DialogTitle>
                 </DialogHeader>
 
-                {/* Scrollable Body (No Scrollbar)
-                   1. flex-1: Takes up remaining height
-                   2. overflow-y-auto: Enables vertical scrolling
-                   3. [&::-webkit-scrollbar]:hidden: Hides scrollbar on Chrome/Safari
-                   4. [-ms-overflow-style:'none']: Hides on IE/Edge
-                   5. [scrollbar-width:'none']: Hides on Firefox
-                */}
-                <div className="flex-1 overflow-y-auto bg-gray-50/50 p-6 
-                                [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
-                    
-                    {/* The actual slip content to be captured/printed */}
+                {/* Scrollable Body */}
+                <div className="flex-1 overflow-y-auto bg-gray-50/50 p-6 no-scrollbar">
+
+                    {/* Slip Content */}
                     <div className="bg-white text-black border rounded-lg shadow-sm p-8 max-w-2xl mx-auto" id="salary-slip">
-                        {/* Header */}
+                        {/* Company Header */}
                         <div className="text-center mb-8 border-b pb-6">
                             <h1 className="text-2xl font-bold uppercase tracking-wider text-gray-900">Catalyr HRMS</h1>
                             <p className="text-sm text-gray-500 mt-1">123 Business Park, Tech City, TC 90210</p>
                             <div className="mt-4 inline-block px-4 py-1 bg-gray-100 rounded-full">
-                                <p className="text-sm font-medium text-gray-700">Payslip for {format(new Date(slip.year, slip.month - 1), 'MMMM yyyy')}</p>
+                                <p className="text-sm font-medium text-gray-700">Payslip for {format(new Date(slipData.year, slipData.month - 1), 'MMMM yyyy')}</p>
                             </div>
                         </div>
 
@@ -142,11 +151,11 @@ export function SalarySlipDialog({
                             </div>
                             <div className="flex justify-between border-b border-gray-100 pb-1">
                                 <span className="text-gray-500">Days Paid</span>
-                                <span className="font-semibold text-gray-900">30</span>
+                                <span className="font-semibold text-gray-900">{slipData.total_days || 30}</span>
                             </div>
                             <div className="flex justify-between border-b border-gray-100 pb-1">
-                                <span className="text-gray-500">Pay Date</span>
-                                <span className="font-semibold text-gray-900">{format(new Date(), 'dd MMM yyyy')}</span>
+                                <span className="text-gray-500">Generated On</span>
+                                <span className="font-semibold text-gray-900">{format(new Date(slipData.generated_at || new Date()), 'dd MMM yyyy')}</span>
                             </div>
                         </div>
 
@@ -161,47 +170,65 @@ export function SalarySlipDialog({
                                 <div>
                                     <div className="flex justify-between p-3 border-b border-dashed text-sm">
                                         <span className="text-gray-600">Basic Salary</span>
-                                        <span className="font-medium">{Number(slip.basic_salary || 0).toLocaleString()}</span>
+                                        <span className="font-medium">{basic.toLocaleString()}</span>
                                     </div>
-                                    <div className="flex justify-between p-3 border-b border-dashed text-sm">
-                                        <span className="text-gray-600">HRA</span>
-                                        <span className="font-medium">{Number(slip.hra || 0).toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex justify-between p-3 border-b border-dashed text-sm">
-                                        <span className="text-gray-600">Special Allowance</span>
-                                        <span className="font-medium">{Number(slip.da || 0).toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex justify-between p-3 border-b border-dashed text-sm">
-                                        <span className="text-gray-600">Reimbursements</span>
-                                        <span className="font-medium">{Number(slip.reimbursements || 0).toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex justify-between p-3 bg-gray-50 font-bold mt-4 text-sm">
+                                    {(hra > 0) && (
+                                        <div className="flex justify-between p-3 border-b border-dashed text-sm">
+                                            <span className="text-gray-600">HRA</span>
+                                            <span className="font-medium">{hra.toLocaleString()}</span>
+                                        </div>
+                                    )}
+                                    {(da > 0) && (
+                                        <div className="flex justify-between p-3 border-b border-dashed text-sm">
+                                            <span className="text-gray-600">Special Allowance</span>
+                                            <span className="font-medium">{da.toLocaleString()}</span>
+                                        </div>
+                                    )}
+                                    {(reimbursements > 0) && (
+                                        <div className="flex justify-between p-3 border-b border-dashed text-sm">
+                                            <span className="text-gray-600">Reimbursements</span>
+                                            <span className="font-medium">{reimbursements.toLocaleString()}</span>
+                                        </div>
+                                    )}
+                                    {(bonus > 0) && (
+                                        <div className="flex justify-between p-3 border-b border-dashed text-sm bg-green-50/50">
+                                            <span className="text-gray-600">Bonus</span>
+                                            <span className="font-medium">{bonus.toLocaleString()}</span>
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-between p-3 bg-gray-50 font-bold mt-auto text-sm">
                                         <span>Total Earnings</span>
-                                        <span>{Number(slip.gross_salary || 0).toLocaleString()}</span>
+                                        <span>{Number(slipData.gross_salary || totalEarnings).toLocaleString()}</span>
                                     </div>
                                 </div>
 
                                 {/* Deductions Column */}
-                                <div>
+                                <div className="flex flex-col">
                                     <div className="flex justify-between p-3 border-b border-dashed text-sm">
                                         <span className="text-gray-600">Provident Fund</span>
-                                        <span className="font-medium">{Number(slip.deductions?.pf || 0).toLocaleString()}</span>
+                                        <span className="font-medium">{pf.toLocaleString()}</span>
                                     </div>
                                     <div className="flex justify-between p-3 border-b border-dashed text-sm">
                                         <span className="text-gray-600">Professional Tax</span>
-                                        <span className="font-medium">{Number(slip.deductions?.tax || 0).toLocaleString()}</span>
+                                        <span className="font-medium">{tax.toLocaleString()}</span>
                                     </div>
-                                    <div className="flex justify-between p-3 border-b border-dashed text-sm">
-                                        <span className="text-gray-600">Loss of Pay</span>
-                                        <span className="font-medium">{Number(slip.deductions?.loss_of_pay || 0).toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex justify-between p-3 border-b border-dashed text-sm">
-                                        <span className="text-gray-600">Other Deductions</span>
-                                        <span className="font-medium">{Number(slip.deductions?.other || 0).toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex justify-between p-3 bg-gray-50 font-bold mt-4 text-sm">
+                                    {(lop > 0) && (
+                                        <div className="flex justify-between p-3 border-b border-dashed text-sm text-red-600/80">
+                                            <span className="text-gray-600">Loss of Pay</span>
+                                            <span className="font-medium">{lop.toLocaleString()}</span>
+                                        </div>
+                                    )}
+                                    {(otherDeductions > 0) && (
+                                        <div className="flex justify-between p-3 border-b border-dashed text-sm">
+                                            <span className="text-gray-600">Other Deductions</span>
+                                            <span className="font-medium">{otherDeductions.toLocaleString()}</span>
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-between p-3 bg-gray-50 font-bold mt-auto text-sm">
                                         <span>Total Deductions</span>
-                                        <span>{Number((slip.deductions?.pf || 0) + (slip.deductions?.tax || 0) + (slip.deductions?.loss_of_pay || 0) + (slip.deductions?.other || 0)).toLocaleString()}</span>
+                                        <span>{totalDeductions.toLocaleString()}</span>
                                     </div>
                                 </div>
                             </div>
@@ -216,7 +243,7 @@ export function SalarySlipDialog({
                                 </p>
                             </div>
                             <div className="text-3xl font-bold text-primary">
-                                ₹{Number(slip.net_salary || 0).toLocaleString()}
+                                ₹{netSalary.toLocaleString()}
                             </div>
                         </div>
 

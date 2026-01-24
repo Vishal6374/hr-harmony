@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { format } from 'date-fns';
 import { Clock, Calendar, User, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface AttendanceEditModalProps {
     open: boolean;
@@ -89,7 +90,7 @@ export function AttendanceEditModal({
         e.preventDefault();
 
         if (!formData.edit_reason.trim()) {
-            alert('Please provide a reason for editing this attendance record');
+            toast.error('Please provide a reason for editing this attendance record');
             return;
         }
 
