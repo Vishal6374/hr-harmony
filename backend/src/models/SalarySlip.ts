@@ -11,6 +11,15 @@ export interface SalarySlipAttributes {
     bonus: number;
     lop: number; // Loss of Pay
     other_deductions: number;
+    hra: number;
+    da: number;
+    reimbursements: number;
+    deductions: {
+        pf: number;
+        tax: number;
+        loss_of_pay: number;
+        other: number;
+    };
     gross_salary: number;
     net_salary: number;
     present_days: number;
@@ -23,7 +32,14 @@ export interface SalarySlipAttributes {
     updated_at?: Date;
 }
 
-export interface SalarySlipCreationAttributes extends Optional<SalarySlipAttributes, 'id' | 'status' | 'created_at' | 'updated_at'> { }
+export interface SalarySlipCreationAttributes extends Optional<SalarySlipAttributes,
+    'id' | 'status' | 'created_at' | 'updated_at' |
+    'basic_salary' | 'bonus' | 'lop' | 'other_deductions' |
+    'hra' | 'da' | 'reimbursements' | 'deductions' |
+    'gross_salary' | 'net_salary' |
+    'present_days' | 'absent_days' | 'total_days' |
+    'generated_at'
+> { }
 
 class SalarySlip extends Model<SalarySlipAttributes, SalarySlipCreationAttributes> implements SalarySlipAttributes {
     public id!: string;
@@ -35,6 +51,15 @@ class SalarySlip extends Model<SalarySlipAttributes, SalarySlipCreationAttribute
     public bonus!: number;
     public lop!: number;
     public other_deductions!: number;
+    public hra!: number;
+    public da!: number;
+    public reimbursements!: number;
+    public deductions!: {
+        pf: number;
+        tax: number;
+        loss_of_pay: number;
+        other: number;
+    };
     public gross_salary!: number;
     public net_salary!: number;
     public present_days!: number;
@@ -94,6 +119,26 @@ SalarySlip.init(
             type: DataTypes.DECIMAL(10, 2),
             allowNull: false,
             defaultValue: 0,
+        },
+        hra: {
+            type: DataTypes.DECIMAL(10, 2),
+            allowNull: false,
+            defaultValue: 0,
+        },
+        da: {
+            type: DataTypes.DECIMAL(10, 2),
+            allowNull: false,
+            defaultValue: 0,
+        },
+        reimbursements: {
+            type: DataTypes.DECIMAL(10, 2),
+            allowNull: false,
+            defaultValue: 0,
+        },
+        deductions: {
+            type: DataTypes.JSON,
+            allowNull: false,
+            defaultValue: { pf: 0, tax: 0, loss_of_pay: 0, other: 0 },
         },
         gross_salary: {
             type: DataTypes.DECIMAL(10, 2),

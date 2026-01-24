@@ -50,7 +50,7 @@ export default function Login() {
               <div className="space-y-2"><Label htmlFor="password">Password</Label><div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10" required /></div></div>
               <Button type="submit" className="w-full" disabled={isLoading}>{isLoading ? 'Signing in...' : 'Sign in'}</Button>
             </form>
-            <div className="mt-6 pt-6 border-t"><p className="text-xs text-center text-muted-foreground mb-3">Demo Credentials</p><div className="grid grid-cols-2 gap-3"><Button variant="outline" size="sm" onClick={() => fillCredentials('hr')} className="text-xs">HR Login</Button><Button variant="outline" size="sm" onClick={() => fillCredentials('employee')} className="text-xs">Employee Login</Button></div></div>
+            {/* <div className="mt-6 pt-6 border-t"><p className="text-xs text-center text-muted-foreground mb-3">Demo Credentials</p><div className="grid grid-cols-2 gap-3"><Button variant="outline" size="sm" onClick={() => fillCredentials('hr')} className="text-xs">HR Login</Button><Button variant="outline" size="sm" onClick={() => fillCredentials('employee')} className="text-xs">Employee Login</Button></div></div> */}
           </CardContent>
         </Card>
       </div>
