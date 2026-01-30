@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { MainLayout } from "@/components/layout/MainLayout";
+import Loader from "@/components/ui/Loader";
 
 interface PageLoaderProps {
     className?: string;
@@ -8,14 +9,8 @@ interface PageLoaderProps {
 
 export function PageLoader({ className, fullPage = true }: PageLoaderProps) {
     const content = (
-        <div className={cn("flex items-center justify-center w-full h-[60vh]", className)}>
-            <div className="animate-flip">
-                <img
-                    src="/favicon.png"
-                    alt="Loading..."
-                    className="w-16 h-16 rounded-full shadow-lg"
-                />
-            </div>
+        <div className={cn("w-full min-h-[60vh]", className)}>
+            <Loader />
         </div>
     );
 
