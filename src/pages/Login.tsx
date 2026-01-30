@@ -166,7 +166,7 @@ export default function Login() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password" title="Enter your password" className="text-zinc-700 dark:text-zinc-300">Password</Label>
-                <a href="#" className="text-xs font-medium text-blue-600 hover:text-blue-500 hover:underline">Forgot password?</a>
+                {/* <a href="#" className="text-xs font-medium text-blue-600 hover:text-blue-500 hover:underline">Forgot password?</a> */}
               </div>
               <div className="group relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 transition-colors group-focus-within:text-blue-500" />
