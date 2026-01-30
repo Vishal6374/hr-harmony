@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSidebar } from '@/contexts/SidebarContext';
-import { LayoutDashboard, Users, Building2, Briefcase, CalendarCheck, Wallet, CalendarDays, Receipt, MessageSquareWarning, FileText, CalendarRange, User, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Users, Building2, Briefcase, CalendarCheck, Wallet, CalendarDays, Receipt, MessageSquareWarning, FileText, CalendarRange, User, LogOut, ChevronLeft, ChevronRight, ClipboardList, Video, UserMinus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -11,6 +11,8 @@ const navItems = [
   { title: 'Departments', href: '/departments', icon: Building2, hrOnly: true },
   { title: 'Designations', href: '/designations', icon: Briefcase, hrOnly: true },
   { title: 'Employees', href: '/employees', icon: Users, hrOnly: true },
+  { title: 'Tasks', href: '/tasks', icon: ClipboardList },
+  { title: 'Meetings', href: '/meetings', icon: Video },
   { title: 'Attendance', href: '/attendance', icon: CalendarCheck },
   { title: 'Payroll', href: '/payroll', icon: Wallet },
   { title: 'Leaves', href: '/leaves', icon: CalendarDays },
@@ -18,6 +20,7 @@ const navItems = [
   { title: 'Complaints', href: '/complaints', icon: MessageSquareWarning },
   { title: 'Policies', href: '/policies', icon: FileText },
   { title: 'Holidays', href: '/holidays', icon: CalendarRange },
+  { title: 'Exit Management', href: '/resignations', icon: UserMinus, hrOnly: true },
   { title: 'Profile', href: '/profile', icon: User },
 ];
 

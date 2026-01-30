@@ -17,6 +17,14 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AttendanceEditModal } from '@/components/attendance/AttendanceEditModal';
 import { AttendanceSettings } from '@/components/attendance/AttendanceSettings';
 import { MarkAttendanceModal } from '@/components/attendance/MarkAttendanceModal';
+<<<<<<< Updated upstream
+=======
+import { PageLoader } from '@/components/ui/page-loader';
+import Loader from '@/components/ui/Loader';
+import { RegularizationModal } from '@/components/attendance/RegularizationModal';
+import { regularizationService } from '@/services/apiService';
+import { AlertCircle, Check, X as XIcon } from 'lucide-react';
+>>>>>>> Stashed changes
 
 export default function Attendance() {
   const { isHR, user } = useAuth();
@@ -29,6 +37,8 @@ export default function Attendance() {
   const [showSettings, setShowSettings] = useState(false);
   const [markingEmployee, setMarkingEmployee] = useState<any>(null);
   const [isMarkModalOpen, setIsMarkModalOpen] = useState(false);
+  const [isRegularizationModalOpen, setIsRegularizationModalOpen] = useState(false);
+  const [showRegularizationRequests, setShowRegularizationRequests] = useState(false);
 
   // Update clock every second
   useEffect(() => {
@@ -129,6 +139,34 @@ export default function Attendance() {
     },
   });
 
+  const requestRegularizationMutation = useMutation({
+    mutationFn: regularizationService.request,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['regularization-requests'] });
+      setIsRegularizationModalOpen(false);
+      toast.success('Regularization request submitted');
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to submit request'),
+  });
+
+  const processRegularizationMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => regularizationService.process(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['regularization-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      toast.success('Request processed');
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to process request'),
+  });
+
+  const { data: regularizationRequests = [] } = useQuery({
+    queryKey: ['regularization-requests', isHR],
+    queryFn: async () => {
+      const { data } = isHR ? await regularizationService.getAllRequests() : await regularizationService.getMyRequests();
+      return data;
+    },
+  });
+
   // Calculate stats
   const todayLogs = logs.filter((log: any) => isSameDay(new Date(log.date), today));
   const presentToday = todayLogs.filter((log: any) => log.status === 'present').length;
@@ -206,22 +244,99 @@ export default function Attendance() {
             title="Attendance"
             description={isHR ? 'Track and manage employee attendance' : 'Clock in/out and view your attendance'}
           />
-          {isHR && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSettings(!showSettings)}
-              className="gap-2"
-            >
-              <Settings className="w-4 h-4" />
-              {showSettings ? 'Hide Settings' : 'Settings'}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {!isHR && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsRegularizationModalOpen(true)}
+                className="gap-2"
+              >
+                <AlertCircle className="w-4 h-4" />
+                Request Correction
+              </Button>
+            )}
+            {isHR && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowRegularizationRequests(!showRegularizationRequests)}
+                className="gap-2"
+              >
+                <AlertCircle className="w-4 h-4" />
+                {showRegularizationRequests ? 'Show Attendance' : 'View Requests'}
+              </Button>
+            )}
+            {isHR && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSettings(!showSettings)}
+                className="gap-2"
+              >
+                <Settings className="w-4 h-4" />
+                {showSettings ? 'Hide Settings' : 'Settings'}
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Settings Panel - HR Only */}
         {isHR && showSettings && (
           <AttendanceSettings />
+        )}
+
+        {/* Regularization Requests - HR Only */}
+        {isHR && showRegularizationRequests && (
+          <Card className="animate-in slide-in-from-top duration-300">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center justify-between">
+                <span>Pending Regularization Requests</span>
+                <span className="text-xs font-normal text-muted-foreground">{regularizationRequests.filter((r: any) => r.status === 'pending').length} Pending</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {regularizationRequests.filter((r: any) => r.status === 'pending').length > 0 ? (
+                  regularizationRequests.filter((r: any) => r.status === 'pending').map((req: any) => (
+                    <div key={req.id} className="p-4 border rounded-xl bg-muted/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold">{req.employee?.name}</span>
+                          <span className="text-xs text-muted-foreground">({req.employee?.employee_id})</span>
+                        </div>
+                        <div className="text-sm">
+                          <span className="font-medium">{format(new Date(req.attendance_date), 'dd MMM yyyy')}</span>
+                          <span className="mx-2 text-muted-foreground">|</span>
+                          <span className="capitalize text-primary italic">{req.type.replace('_', ' ')}</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground italic">"{req.reason}"</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:bg-destructive/10"
+                          onClick={() => processRegularizationMutation.mutate({ id: req.id, data: { status: 'rejected', remarks: 'Rejected by HR' } })}
+                        >
+                          <XIcon className="w-4 h-4 mr-1" /> Reject
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                          onClick={() => processRegularizationMutation.mutate({ id: req.id, data: { status: 'approved', remarks: 'Approved by HR' } })}
+                        >
+                          <Check className="w-4 h-4 mr-1" /> Approve
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center text-sm text-muted-foreground py-8">No pending requests.</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Stats Cards */}
@@ -621,6 +736,13 @@ export default function Attendance() {
             isSaving={markAttendanceMutation.isPending}
           />
         )}
+        {/* Regularization Modal */}
+        <RegularizationModal
+          open={isRegularizationModalOpen}
+          onOpenChange={setIsRegularizationModalOpen}
+          onSave={(data) => requestRegularizationMutation.mutate(data)}
+          isSaving={requestRegularizationMutation.isPending}
+        />
       </div>
     </MainLayout>
   );

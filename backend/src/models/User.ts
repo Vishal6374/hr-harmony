@@ -17,6 +17,7 @@ export interface UserAttributes {
     salary: number;
     role: 'hr' | 'employee';
     status: 'active' | 'inactive' | 'on_leave' | 'terminated';
+    onboarding_status: 'pending' | 'approved' | 'locked';
     address?: string;
     avatar_url?: string;
     termination_date?: Date;
@@ -25,7 +26,7 @@ export interface UserAttributes {
     updated_at?: Date;
 }
 
-export interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'created_at' | 'updated_at'> { }
+export interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'onboarding_status' | 'created_at' | 'updated_at'> { }
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
     public id!: string;
@@ -42,6 +43,7 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
     public salary!: number;
     public role!: 'hr' | 'employee';
     public status!: 'active' | 'inactive' | 'on_leave' | 'terminated';
+    public onboarding_status!: 'pending' | 'approved' | 'locked';
     public address?: string;
     public avatar_url?: string;
     public termination_date?: Date;
@@ -127,6 +129,11 @@ User.init(
             type: DataTypes.ENUM('active', 'inactive', 'on_leave', 'terminated'),
             allowNull: false,
             defaultValue: 'active',
+        },
+        onboarding_status: {
+            type: DataTypes.ENUM('pending', 'approved', 'locked'),
+            allowNull: false,
+            defaultValue: 'pending',
         },
         address: {
             type: DataTypes.TEXT,

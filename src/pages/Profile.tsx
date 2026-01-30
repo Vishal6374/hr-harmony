@@ -73,6 +73,13 @@ export default function Profile() {
     enabled: !!user?.id,
   });
 
+<<<<<<< Updated upstream
+=======
+  const latestResignation = myResignations[0];
+  const hasActiveResignation = latestResignation && (latestResignation.status === 'pending' || latestResignation.status === 'approved');
+  const isLocked = employee?.onboarding_status === 'locked';
+
+>>>>>>> Stashed changes
   useEffect(() => {
     if (employee) {
       setFormData({
@@ -205,6 +212,7 @@ export default function Profile() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <StatusBadge status={employee.status} />
+                    <StatusBadge status={employee.onboarding_status} />
                     <span className="text-sm text-muted-foreground px-2 py-1 bg-muted rounded-md">
                       {employee.employee_id}
                     </span>
@@ -243,8 +251,9 @@ export default function Profile() {
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base">Personal Information</CardTitle>
                 {!isEditing ? (
-                  <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-                    Edit
+                  <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} disabled={isLocked}>
+                    {isLocked && <Clock className="w-4 h-4 mr-2" />}
+                    {isLocked ? 'Profile Locked' : 'Edit'}
                   </Button>
                 ) : (
                   <div className="flex gap-2">
@@ -260,6 +269,12 @@ export default function Profile() {
                 )}
               </CardHeader>
               <CardContent className="space-y-6">
+                {isLocked && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm flex items-center gap-2 mb-4">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Your onboarding profile has been approved and locked. Contact HR for any changes.
+                  </div>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">

@@ -9,6 +9,7 @@ export interface User {
   avatar?: string;
   departmentId: string;
   designationId: string;
+  onboarding_status?: 'pending' | 'approved' | 'locked';
 }
 
 export interface Department {
@@ -47,6 +48,16 @@ export interface Employee {
   status: 'active' | 'inactive' | 'on_leave' | 'terminated';
   address: string;
   avatar?: string;
+<<<<<<< Updated upstream
+=======
+  bankName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  branchName?: string;
+  onboarding_status: 'pending' | 'approved' | 'locked';
+  department?: Department;
+  designation?: Designation;
+>>>>>>> Stashed changes
 }
 
 export type AttendanceStatus = 'present' | 'absent' | 'half_day' | 'on_leave' | 'holiday' | 'weekend';

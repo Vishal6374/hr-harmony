@@ -14,6 +14,13 @@ import reimbursementRoutes from './reimbursementRoutes';
 import complaintRoutes from './complaintRoutes';
 import policyRoutes from './policyRoutes';
 import holidayRoutes from './holidayRoutes';
+<<<<<<< Updated upstream
+=======
+import resignationRoutes from './resignationRoutes';
+import regularizationRoutes from './regularizationRoutes';
+import taskLogRoutes from './taskLogRoutes';
+import meetingRoutes from './meetingRoutes';
+>>>>>>> Stashed changes
 
 const router = express.Router();
 
@@ -32,6 +39,13 @@ router.use('/reimbursements', reimbursementRoutes);
 router.use('/complaints', complaintRoutes);
 router.use('/policies', policyRoutes);
 router.use('/holidays', holidayRoutes);
+<<<<<<< Updated upstream
+=======
+router.use('/resignations', resignationRoutes);
+router.use('/regularization', regularizationRoutes);
+router.use('/tasks', taskLogRoutes);
+router.use('/meetings', meetingRoutes);
+>>>>>>> Stashed changes
 
 // Health check
 router.get('/health', (_req, res) => {

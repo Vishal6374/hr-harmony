@@ -10,7 +10,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Employee } from '@/types/hrms';
+<<<<<<< Updated upstream
 import { Search, UserPlus, Eye, Pencil, Loader2, UserX } from 'lucide-react';
+=======
+import { Search, UserPlus, Eye, Pencil, UserX, CheckCircle2 } from 'lucide-react';
+>>>>>>> Stashed changes
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -36,7 +40,18 @@ export default function Employees() {
     designation_id: '',
     role: 'employee',
     status: 'active',
+<<<<<<< Updated upstream
     password: 'password123' // Default password for new users
+=======
+    salary: '',
+    address: '',
+    bank_name: '',
+    account_number: '',
+    ifsc_code: '',
+    branch_name: '',
+    password: '',
+    onboarding_status: 'pending'
+>>>>>>> Stashed changes
   });
 
   const queryClient = useQueryClient();
@@ -112,7 +127,18 @@ export default function Employees() {
       designation_id: '',
       role: 'employee',
       status: 'active',
+<<<<<<< Updated upstream
       password: 'password123'
+=======
+      salary: '',
+      address: '',
+      bank_name: '',
+      account_number: '',
+      ifsc_code: '',
+      branch_name: '',
+      password: '',
+      onboarding_status: 'pending'
+>>>>>>> Stashed changes
     });
   };
 
@@ -130,7 +156,18 @@ export default function Employees() {
       designation_id: emp.designation_id || '',
       role: emp.role,
       status: emp.status,
+<<<<<<< Updated upstream
       password: '' // Don't fill password on edit
+=======
+      salary: emp.salary || '',
+      address: emp.address || '',
+      bank_name: emp.bank_name || '',
+      account_number: emp.account_number || '',
+      ifsc_code: emp.ifsc_code || '',
+      branch_name: emp.branch_name || '',
+      password: '',
+      onboarding_status: emp.onboarding_status || 'pending'
+>>>>>>> Stashed changes
     });
     setIsDialogOpen(true);
   };
@@ -178,6 +215,7 @@ export default function Employees() {
     { key: 'email', header: 'Email', cell: (emp) => <span className="text-muted-foreground text-sm">{emp.email}</span> },
     { key: 'department', header: 'Department', cell: (emp) => <span>{emp.department?.name || 'Unknown'}</span> },
     { key: 'designation', header: 'Designation', cell: (emp) => <span className="text-muted-foreground">{emp.designation?.name || 'Unknown'}</span> },
+    { key: 'onboarding', header: 'Onboarding', cell: (emp: any) => <StatusBadge status={emp.onboarding_status} /> },
     { key: 'status', header: 'Status', cell: (emp) => <StatusBadge status={emp.status} /> },
     {
       key: 'actions',
@@ -190,6 +228,17 @@ export default function Employees() {
           {emp.status !== 'terminated' && (
             <Button variant="ghost" size="icon" className="h-8 w-8 text-orange-600 hover:text-orange-700 hover:bg-orange-50" onClick={() => handleTerminate(emp)} title="Terminate">
               <UserX className="w-4 h-4" />
+            </Button>
+          )}
+          {emp.onboarding_status !== 'locked' && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+              onClick={() => updateMutation.mutate({ id: emp.id, data: { onboarding_status: 'locked' } })}
+              title="Lock/Approve Profile"
+            >
+              <CheckCircle2 className="w-4 h-4" />
             </Button>
           )}
         </div>

@@ -278,3 +278,60 @@ export const employeeDocumentService = {
     deleteDocument: (documentId: string) =>
         api.delete(`/employees/documents/${documentId}`),
 };
+<<<<<<< Updated upstream
+=======
+
+// Resignation Services
+export const resignationService = {
+    getRequests: (params?: any) =>
+        api.get('/resignations', { params }),
+    apply: (data: any) =>
+        api.post('/resignations/apply', data),
+    approve: (id: string, data: { approved_last_working_day: string; hr_remarks?: string }) =>
+        api.post(`/resignations/${id}/approve`, data),
+    reject: (id: string, hr_remarks: string) =>
+        api.post(`/resignations/${id}/reject`, { hr_remarks }),
+    withdraw: (id: string) =>
+        api.post(`/resignations/${id}/withdraw`),
+};
+
+// Regularization Services
+export const regularizationService = {
+    request: (data: any) =>
+        api.post('/regularization/request', data),
+    getMyRequests: () =>
+        api.get('/regularization/my'),
+    getAllRequests: () =>
+        api.get('/regularization/all'),
+    process: (id: string, data: { status: string; remarks?: string }) =>
+        api.put(`/regularization/process/${id}`, data),
+};
+
+// Task Services
+export const taskLogService = {
+    logTask: (data: any) =>
+        api.post('/tasks', data),
+    getMyTasks: (params?: any) =>
+        api.get('/tasks/my', { params }),
+    getAllTasks: (params?: any) =>
+        api.get('/tasks/all', { params }),
+    update: (id: string, data: any) =>
+        api.put(`/tasks/${id}`, data),
+    delete: (id: string) =>
+        api.delete(`/tasks/${id}`),
+};
+
+// Meeting Services
+export const meetingService = {
+    create: (data: any) =>
+        api.post('/meetings', data),
+    getMyMeetings: () =>
+        api.get('/meetings/my'),
+    getAllMeetings: () =>
+        api.get('/meetings/all'),
+    update: (id: string, data: any) =>
+        api.put(`/meetings/${id}`, data),
+    delete: (id: string) =>
+        api.delete(`/meetings/${id}`),
+};
+>>>>>>> Stashed changes

@@ -14,6 +14,13 @@ import Policy from './Policy';
 import Holiday from './Holiday';
 import AuditLog from './AuditLog';
 import EmployeeDocument from './EmployeeDocument';
+<<<<<<< Updated upstream
+=======
+import Resignation from './Resignation';
+import RegularizationRequest from './RegularizationRequest';
+import TaskLog from './TaskLog';
+import Meeting from './Meeting';
+>>>>>>> Stashed changes
 // Temporarily disabled to debug server crash
 // import SalaryStructure from './SalaryStructure';
 // import PayGroup from './PayGroup';
@@ -114,6 +121,25 @@ EmployeeDocument.belongsTo(User, { foreignKey: 'employee_id', as: 'employee', co
 User.hasMany(EmployeeDocument, { foreignKey: 'employee_id', as: 'documents', constraints: false });
 EmployeeDocument.belongsTo(User, { foreignKey: 'uploaded_by', as: 'uploader', constraints: false });
 
+<<<<<<< Updated upstream
+=======
+// Resignation - User relationships
+Resignation.belongsTo(User, { foreignKey: 'employee_id', as: 'employee', constraints: false });
+User.hasMany(Resignation, { foreignKey: 'employee_id', as: 'resignations', constraints: false });
+
+// RegularizationRequest - User relationships
+RegularizationRequest.belongsTo(User, { foreignKey: 'employee_id', as: 'employee', constraints: false });
+User.hasMany(RegularizationRequest, { foreignKey: 'employee_id', as: 'regularizationRequests', constraints: false });
+RegularizationRequest.belongsTo(User, { foreignKey: 'approved_by', as: 'approver', constraints: false });
+
+// TaskLog - User relationships
+TaskLog.belongsTo(User, { foreignKey: 'employee_id', as: 'employee', constraints: false });
+User.hasMany(TaskLog, { foreignKey: 'employee_id', as: 'taskLogs', constraints: false });
+
+// Meeting - User relationships
+Meeting.belongsTo(User, { foreignKey: 'created_by', as: 'creator', constraints: false });
+
+>>>>>>> Stashed changes
 export {
     User,
     Department,
@@ -131,6 +157,13 @@ export {
     Holiday,
     AuditLog,
     EmployeeDocument,
+<<<<<<< Updated upstream
+=======
+    Resignation,
+    RegularizationRequest,
+    TaskLog,
+    Meeting,
+>>>>>>> Stashed changes
     // Temporarily disabled
     // SalaryStructure,
     // PayGroup,
@@ -158,6 +191,13 @@ export default {
     Holiday,
     AuditLog,
     EmployeeDocument,
+<<<<<<< Updated upstream
+=======
+    Resignation,
+    RegularizationRequest,
+    TaskLog,
+    Meeting,
+>>>>>>> Stashed changes
     // Temporarily disabled
     // SalaryStructure,
     // PayGroup,
