@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { payrollService } from "@/services/apiService";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import Loader from "@/components/ui/Loader";
 
 interface CreateSalarySlipDialogProps {
     isOpen: boolean;
@@ -176,7 +176,7 @@ export function CreateSalarySlipDialog({ isOpen, onClose, employees }: CreateSal
                 <DialogFooter>
                     <Button variant="outline" onClick={onClose}>Cancel</Button>
                     <Button onClick={handleSubmit} disabled={createMutation.isPending}>
-                        {createMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                        {createMutation.isPending && <Loader size="small" variant="white" className="mr-2" />}
                         Create Slip
                     </Button>
                 </DialogFooter>

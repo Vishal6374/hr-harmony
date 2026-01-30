@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback, ReactNode, use
 import { authService } from '@/services/apiService';
 import { toast } from 'sonner';
 
-export type UserRole = 'hr' | 'employee';
+export type UserRole = 'admin' | 'hr' | 'employee';
 
 export interface User {
   id: string;
@@ -20,6 +20,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
+  isAdmin: boolean;
   isHR: boolean;
   isEmployee: boolean;
   loading: boolean;
@@ -79,7 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAuthenticated: !!user,
     login,
     logout,
-    isHR: user?.role === 'hr',
+    isAdmin: user?.role === 'admin',
+    isHR: user?.role === 'hr' || user?.role === 'admin',
     isEmployee: user?.role === 'employee',
     loading,
   };

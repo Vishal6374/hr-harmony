@@ -45,7 +45,7 @@ export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <img src="/favicon.png" alt="Catalyr Logo" className="w-8 h-8 object-contain" />
-                                <SheetTitle className="font-bold text-primary-foreground text-xl">Catalyr</SheetTitle>
+                                <SheetTitle className="font-bold text-primary-foreground text-xl">Catalyr HRMS</SheetTitle>
                             </div>
                             <Button
                                 variant="ghost"

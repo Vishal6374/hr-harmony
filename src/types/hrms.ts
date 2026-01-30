@@ -1,4 +1,4 @@
-export type UserRole = 'hr' | 'employee';
+export type UserRole = 'admin' | 'hr' | 'employee';
 
 export interface User {
   id: string;
@@ -47,6 +47,12 @@ export interface Employee {
   status: 'active' | 'inactive' | 'on_leave' | 'terminated';
   address: string;
   avatar?: string;
+  bankName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  branchName?: string;
+  department?: Department;
+  designation?: Designation;
 }
 
 export type AttendanceStatus = 'present' | 'absent' | 'half_day' | 'on_leave' | 'holiday' | 'weekend';
@@ -177,4 +183,24 @@ export interface Holiday {
   type: 'national' | 'regional' | 'company';
   isOptional: boolean;
   year: number;
+}
+
+export type ResignationStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn';
+
+export interface Resignation {
+  id: string;
+  employeeId: string;
+  reason: string;
+  preferredLastWorkingDay: Date;
+  approvedLastWorkingDay?: Date;
+  status: ResignationStatus;
+  hrRemarks?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+export interface AttendanceSettings {
+  id: string;
+  standardWorkHours: number;
+  halfDayThreshold: number;
+  allowSelfClockIn: boolean;
 }

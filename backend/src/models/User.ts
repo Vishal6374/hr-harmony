@@ -15,12 +15,16 @@ export interface UserAttributes {
     designation_id?: string;
     reporting_manager_id?: string;
     salary: number;
-    role: 'hr' | 'employee';
+    role: 'admin' | 'hr' | 'employee';
     status: 'active' | 'inactive' | 'on_leave' | 'terminated';
     address?: string;
     avatar_url?: string;
     termination_date?: Date;
     termination_reason?: string;
+    bank_name?: string;
+    account_number?: string;
+    ifsc_code?: string;
+    branch_name?: string;
     created_at?: Date;
     updated_at?: Date;
 }
@@ -40,12 +44,16 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
     public designation_id?: string;
     public reporting_manager_id?: string;
     public salary!: number;
-    public role!: 'hr' | 'employee';
+    public role!: 'admin' | 'hr' | 'employee';
     public status!: 'active' | 'inactive' | 'on_leave' | 'terminated';
     public address?: string;
     public avatar_url?: string;
     public termination_date?: Date;
     public termination_reason?: string;
+    public bank_name?: string;
+    public account_number?: string;
+    public ifsc_code?: string;
+    public branch_name?: string;
 
     public readonly created_at!: Date;
     public readonly updated_at!: Date;
@@ -90,7 +98,7 @@ User.init(
             allowNull: false,
         },
         phone: {
-            type: DataTypes.STRING(20),
+            type: DataTypes.STRING(255),
             allowNull: true,
         },
         date_of_birth: {
@@ -119,7 +127,7 @@ User.init(
             defaultValue: 0,
         },
         role: {
-            type: DataTypes.ENUM('hr', 'employee'),
+            type: DataTypes.ENUM('admin', 'hr', 'employee'),
             allowNull: false,
             defaultValue: 'employee',
         },
@@ -142,6 +150,22 @@ User.init(
         },
         termination_reason: {
             type: DataTypes.TEXT,
+            allowNull: true,
+        },
+        bank_name: {
+            type: DataTypes.STRING(100),
+            allowNull: true,
+        },
+        account_number: {
+            type: DataTypes.STRING(50),
+            allowNull: true,
+        },
+        ifsc_code: {
+            type: DataTypes.STRING(20),
+            allowNull: true,
+        },
+        branch_name: {
+            type: DataTypes.STRING(100),
             allowNull: true,
         },
     },

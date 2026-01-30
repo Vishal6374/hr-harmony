@@ -6,7 +6,8 @@ import { DataTable, Column } from '@/components/ui/data-table';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { employeeService } from '@/services/apiService';
 import { toast } from 'sonner';
-import { DollarSign, Save, Loader2 } from 'lucide-react';
+import { DollarSign, Save } from 'lucide-react';
+import Loader from '@/components/ui/Loader';
 
 export default function BasicPayManager() {
     const queryClient = useQueryClient();
@@ -152,7 +153,7 @@ export default function BasicPayManager() {
                         <Button onClick={handleSaveAll} disabled={updateSalaryMutation.isPending}>
                             {updateSalaryMutation.isPending ? (
                                 <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    <Loader size="small" variant="white" className="mr-2" />
                                     Saving...
                                 </>
                             ) : (
@@ -166,8 +167,8 @@ export default function BasicPayManager() {
                 </CardHeader>
                 <CardContent>
                     {isLoading ? (
-                        <div className="text-center py-8">
-                            <Loader2 className="w-8 h-8 animate-spin mx-auto" />
+                        <div className="flex flex-col items-center justify-center py-8">
+                            <Loader />
                             <p className="text-muted-foreground mt-2">Loading employees...</p>
                         </div>
                     ) : (

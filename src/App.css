@@ -9,9 +9,11 @@
   will-change: filter;
   transition: filter 300ms;
 }
+
 .logo:hover {
   filter: drop-shadow(0 0 2em #646cffaa);
 }
+
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
@@ -20,6 +22,7 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -37,4 +40,49 @@
 
 .read-the-docs {
   color: #888;
+}
+
+/* Loader */
+.loader {
+  display: inline-block;
+  width: 80px;
+  height: 80px;
+}
+
+.loader:after {
+  content: ' ';
+  display: block;
+  width: 64px;
+  height: 64px;
+  margin: 1px;
+  border-radius: 50%;
+  border: 6px solid #000000;
+  border-color: #000000 transparent;
+  animation: lds-dual-ring 1.2s linear infinite;
+}
+
+.loader-small {
+  width: 20px;
+  height: 20px;
+}
+
+.loader-small:after {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+  margin: 0;
+}
+
+.loader-white:after {
+  border-color: #ffffff transparent;
+}
+
+@keyframes lds-dual-ring {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }

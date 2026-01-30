@@ -12,9 +12,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { employeeService, employeeDocumentService } from '@/services/apiService';
+import { employeeService, employeeDocumentService, resignationService } from '@/services/apiService';
 import { toast } from 'sonner';
 import {
   User,
@@ -29,13 +30,17 @@ import {
   FileText,
   Save,
   Camera,
-  Loader2,
   Download,
   Trash2,
   Eye,
+  LogOut,
+  Clock,
+  CheckCircle2,
   X
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { PageLoader } from '@/components/ui/page-loader';
+import Loader from '@/components/ui/Loader';
 
 export default function Profile() {
   const { user } = useAuth();
@@ -54,6 +59,10 @@ export default function Profile() {
     fileName: '',
     file: null as File | null,
   });
+  const [resignationData, setResignationData] = useState({
+    reason: '',
+    preferredLastWorkingDay: '',
+  });
 
   const { data: employee, isLoading } = useQuery({
     queryKey: ['profile', user?.id],
@@ -64,14 +73,14 @@ export default function Profile() {
     enabled: !!user?.id,
   });
 
-  const { data: documents = [], isLoading: docsLoading } = useQuery({
-    queryKey: ['documents', user?.id],
-    queryFn: async () => {
-      const { data } = await employeeDocumentService.getDocuments(user?.id as string);
-      return data;
-    },
+  const { data: myResignations = [] } = useQuery({
+    queryKey: ['my-resignations'],
+    queryFn: async () => (await resignationService.getRequests()).data,
     enabled: !!user?.id,
   });
+
+  const latestResignation = myResignations[0];
+  const hasActiveResignation = latestResignation && (latestResignation.status === 'pending' || latestResignation.status === 'approved');
 
   useEffect(() => {
     if (employee) {
@@ -124,6 +133,18 @@ export default function Profile() {
     }
   });
 
+  const resignMutation = useMutation({
+    mutationFn: (data: any) => resignationService.apply(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-resignations'] });
+      toast.success('Resignation request submitted');
+      setResignationData({ reason: '', preferredLastWorkingDay: '' });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to submit resignation');
+    }
+  });
+
   const handleSave = () => {
     updateMutation.mutate(formData);
   };
@@ -159,13 +180,7 @@ export default function Profile() {
   };
 
   if (isLoading) {
-    return (
-      <MainLayout>
-        <div className="flex items-center justify-center h-[calc(100vh-200px)]">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      </MainLayout>
-    );
+    return <PageLoader />;
   }
 
   if (!employee) {
@@ -231,10 +246,11 @@ export default function Profile() {
 
         {/* Profile Tabs */}
         <Tabs defaultValue="personal" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="personal">Personal Info</TabsTrigger>
             <TabsTrigger value="employment">Employment</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
+            <TabsTrigger value="exit">Exit Management</TabsTrigger>
           </TabsList>
 
           {/* Personal Information */}
@@ -252,7 +268,7 @@ export default function Profile() {
                       Cancel
                     </Button>
                     <Button size="sm" onClick={handleSave} disabled={updateMutation.isPending}>
-                      {updateMutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                      {updateMutation.isPending && <Loader size="small" variant="white" className="mr-1" />}
                       {!updateMutation.isPending && <Save className="w-4 h-4 mr-1" />}
                       Save
                     </Button>
@@ -382,67 +398,93 @@ export default function Profile() {
             </Card>
           </TabsContent>
 
-          {/* Documents */}
-          <TabsContent value="documents">
+          {/* Exit Management */}
+          <TabsContent value="exit">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-base">My Documents</CardTitle>
-                <Button size="sm" onClick={() => setIsUploadDialogOpen(true)}>
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload Document
-                </Button>
+              <CardHeader>
+                <CardTitle className="text-base">Resignation & Exit</CardTitle>
               </CardHeader>
-              <CardContent>
-                {docsLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                  </div>
-                ) : documents.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    {documents.map((doc: any) => (
-                      <div key={doc.id} className="p-4 rounded-lg border flex items-center justify-between hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center gap-4 flex-1">
-                          <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                            <FileText className="w-6 h-6 text-primary" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{doc.document_type}</p>
-                            <p className="text-sm text-muted-foreground truncate">{doc.file_name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {doc.created_at && !isNaN(new Date(doc.created_at).getTime())
-                                ? format(new Date(doc.created_at), 'MMM d, yyyy')
-                                : 'N/A'}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 ml-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => window.open(getBackendUrl(doc.file_url), '_blank')}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setSelectedDocument(doc);
-                              setIsDeleteDialogOpen(true);
-                            }}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+              <CardContent className="space-y-6">
+                {!hasActiveResignation ? (
+                  <div className="max-w-xl space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      If you wish to resign from your position, please fill out the form below.
+                      Note that your request will be subject to HR approval based on notice period policies.
+                    </p>
+                    <div className="space-y-2">
+                      <Label>Preferred Last Working Day</Label>
+                      <Input
+                        type="date"
+                        value={resignationData.preferredLastWorkingDay}
+                        onChange={e => setResignationData({ ...resignationData, preferredLastWorkingDay: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Reason for Resignation</Label>
+                      <Textarea
+                        placeholder="Please share your reason for leaving..."
+                        value={resignationData.reason}
+                        onChange={e => setResignationData({ ...resignationData, reason: e.target.value })}
+                        rows={4}
+                      />
+                    </div>
+                    <Button
+                      variant="destructive"
+                      onClick={() => resignMutation.mutate({
+                        reason: resignationData.reason,
+                        preferred_last_working_day: resignationData.preferredLastWorkingDay
+                      })}
+                      disabled={resignMutation.isPending || !resignationData.reason || !resignationData.preferredLastWorkingDay}
+                    >
+                      {resignMutation.isPending && <Loader size="small" variant="white" className="mr-2" />}
+                      <LogOut className="w-4 h-4 mr-2" /> Submit Resignation
+                    </Button>
                   </div>
                 ) : (
-                  <div className="text-center py-8">
-                    <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-2 opacity-50" />
-                    <p className="text-muted-foreground">No documents uploaded yet</p>
-                    <p className="text-sm text-muted-foreground mt-1">Upload your first document to get started</p>
+                  <div className="space-y-6">
+                    <div className={cn(
+                      "p-6 rounded-xl border flex items-start gap-4",
+                      latestResignation.status === 'pending' ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200"
+                    )}>
+                      <div className={cn(
+                        "w-12 h-12 rounded-full flex items-center justify-center",
+                        latestResignation.status === 'pending' ? "bg-blue-100 text-blue-600" : "bg-green-100 text-green-600"
+                      )}>
+                        {latestResignation.status === 'pending' ? <Clock className="w-6 h-6" /> : <CheckCircle2 className="w-6 h-6" />}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-bold text-lg">Resignation {latestResignation.status === 'pending' ? 'Pending' : 'Approved'}</h3>
+                          <StatusBadge status={latestResignation.status} />
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {latestResignation.status === 'pending'
+                            ? "Your resignation request is currently being reviewed by HR."
+                            : `Your resignation has been approved. Your final working day is ${format(new Date(latestResignation.approvedLastWorkingDay || latestResignation.preferredLastWorkingDay), 'MMMM d, yyyy')}.`
+                          }
+                        </p>
+                        {latestResignation.hrRemarks && (
+                          <div className="mt-3 p-3 bg-background rounded-lg border text-sm italic">
+                            <strong>HR Remarks:</strong> {latestResignation.hrRemarks}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">History</h4>
+                      <div className="space-y-3">
+                        {myResignations.map((res: any) => (
+                          <div key={res.id} className="p-4 rounded-lg border bg-card flex items-center justify-between text-sm">
+                            <div>
+                              <p className="font-medium">Applied on {format(new Date(res.createdAt), 'MMM dd, yyyy')}</p>
+                              <p className="text-xs text-muted-foreground">Reason: {res.reason.substring(0, 50)}...</p>
+                            </div>
+                            <StatusBadge status={res.status} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -513,7 +555,7 @@ export default function Profile() {
                 onClick={handleUploadDocument}
                 disabled={uploadMutation.isPending}
               >
-                {uploadMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {uploadMutation.isPending && <Loader size="small" variant="white" className="mr-2" />}
                 Upload
               </Button>
             </DialogFooter>
@@ -540,7 +582,7 @@ export default function Profile() {
                 className="bg-destructive hover:bg-destructive/90"
                 disabled={deleteMutation.isPending}
               >
-                {deleteMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {deleteMutation.isPending && <Loader size="small" variant="white" className="mr-2" />}
                 Delete
               </AlertDialogAction>
             </div>

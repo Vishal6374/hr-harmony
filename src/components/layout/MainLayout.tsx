@@ -24,7 +24,11 @@ export function MainLayout({ children }: MainLayoutProps) {
       <MobileSidebar open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
 
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-30 h-16 bg-primary border-b border-primary/20 flex items-center px-4">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-30 h-16 bg-primary border-b border-primary/20 flex items-center justify-between px-4">
+        <div className="flex items-center gap-2">
+          <img src="/favicon.png" alt="Catalyr Logo" className="w-8 h-8 object-contain" />
+          <span className="font-bold text-primary-foreground text-xl">Catalyr HRMS</span>
+        </div>
         <Button
           variant="ghost"
           size="icon"
@@ -33,10 +37,6 @@ export function MainLayout({ children }: MainLayoutProps) {
         >
           <Menu className="h-6 w-6" />
         </Button>
-        <div className="flex items-center gap-2 ml-4">
-          <img src="/favicon.png" alt="Catalyr Logo" className="w-8 h-8 object-contain" />
-          <span className="font-bold text-primary-foreground text-xl">Catalyr</span>
-        </div>
       </div>
 
       {/* Main Content */}

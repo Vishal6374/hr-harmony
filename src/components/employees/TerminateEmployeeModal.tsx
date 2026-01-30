@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
 import { UserX, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface TerminateEmployeeModalProps {
     open: boolean;
@@ -31,7 +32,7 @@ export function TerminateEmployeeModal({
         e.preventDefault();
 
         if (!formData.termination_reason.trim()) {
-            alert('Please provide a reason for termination');
+            toast.error('Please provide a reason for termination');
             return;
         }
 

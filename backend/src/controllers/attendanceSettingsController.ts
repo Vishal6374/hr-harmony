@@ -13,6 +13,7 @@ export const getAttendanceSettings = async (_req: AuthRequest, res: Response): P
             settings = await AttendanceSettings.create({
                 standard_work_hours: 8.00,
                 half_day_threshold: 4.00,
+                allow_self_clock_in: true,
             });
         }
 
@@ -28,12 +29,12 @@ export const getAttendanceSettings = async (_req: AuthRequest, res: Response): P
 
 export const updateAttendanceSettings = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        // Only HR can update settings
-        if (req.user?.role !== 'hr') {
-            throw new AppError(403, 'Only HR can update attendance settings');
+        // Only HR or Admin can update settings
+        if (req.user?.role !== 'hr' && req.user?.role !== 'admin') {
+            throw new AppError(403, 'Permission denied');
         }
 
-        const { standard_work_hours, half_day_threshold } = req.body;
+        const { standard_work_hours, half_day_threshold, allow_self_clock_in } = req.body;
 
         // Validate inputs
         if (standard_work_hours !== undefined && (standard_work_hours < 0 || standard_work_hours > 24)) {
@@ -55,11 +56,13 @@ export const updateAttendanceSettings = async (req: AuthRequest, res: Response):
             settings = await AttendanceSettings.create({
                 standard_work_hours: standard_work_hours || 8.00,
                 half_day_threshold: half_day_threshold || 4.00,
+                allow_self_clock_in: allow_self_clock_in !== undefined ? allow_self_clock_in : true,
             });
         } else {
             await settings.update({
                 standard_work_hours: standard_work_hours !== undefined ? standard_work_hours : settings.standard_work_hours,
                 half_day_threshold: half_day_threshold !== undefined ? half_day_threshold : settings.half_day_threshold,
+                allow_self_clock_in: allow_self_clock_in !== undefined ? allow_self_clock_in : settings.allow_self_clock_in,
             });
         }
 

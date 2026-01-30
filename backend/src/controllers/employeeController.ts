@@ -82,6 +82,10 @@ export const createEmployee = async (req: AuthRequest, res: Response): Promise<v
         salary,
         role,
         address,
+        bank_name,
+        account_number,
+        ifsc_code,
+        branch_name,
     } = req.body;
 
     // Generate employee ID
@@ -103,6 +107,10 @@ export const createEmployee = async (req: AuthRequest, res: Response): Promise<v
         role: role || 'employee',
         status: 'active',
         address,
+        bank_name,
+        account_number,
+        ifsc_code,
+        branch_name,
     });
 
     // Create default leave balances
@@ -132,6 +140,11 @@ export const updateEmployee = async (req: AuthRequest, res: Response): Promise<v
         address,
         avatar_url,
         salary,
+        role,
+        bank_name,
+        account_number,
+        ifsc_code,
+        branch_name,
     } = req.body;
 
     const employee = await User.findByPk(id as string);
@@ -151,6 +164,11 @@ export const updateEmployee = async (req: AuthRequest, res: Response): Promise<v
     if (address !== undefined) employee.address = address;
     if (avatar_url !== undefined) employee.avatar_url = avatar_url;
     if (salary !== undefined) employee.salary = salary;
+    if (role !== undefined) employee.role = role;
+    if (bank_name !== undefined) employee.bank_name = bank_name;
+    if (account_number !== undefined) employee.account_number = account_number;
+    if (ifsc_code !== undefined) employee.ifsc_code = ifsc_code;
+    if (branch_name !== undefined) employee.branch_name = branch_name;
 
     await employee.save();
 

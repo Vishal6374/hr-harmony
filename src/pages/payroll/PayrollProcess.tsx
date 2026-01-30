@@ -10,8 +10,9 @@ import { DataTable, Column } from '@/components/ui/data-table';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { employeeService, payrollService } from '@/services/apiService';
 import { toast } from 'sonner';
-import { Calendar, Users, DollarSign, Play, Loader2, CheckCircle2 } from 'lucide-react';
+import { Calendar, Users, DollarSign, Play, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
+import Loader from '@/components/ui/Loader';
 
 export default function PayrollProcess() {
     const queryClient = useQueryClient();
@@ -313,8 +314,8 @@ export default function PayrollProcess() {
                     </CardHeader>
                     <CardContent>
                         {loadingEmployees ? (
-                            <div className="text-center py-8">
-                                <Loader2 className="w-8 h-8 animate-spin mx-auto" />
+                            <div className="flex flex-col items-center justify-center py-8">
+                                <Loader />
                                 <p className="text-muted-foreground mt-2">Loading employees...</p>
                             </div>
                         ) : (
@@ -375,7 +376,7 @@ export default function PayrollProcess() {
                         >
                             {processMutation.isPending ? (
                                 <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <Loader size="small" variant="white" className="mr-2" />
                                     Processing...
                                 </>
                             ) : (
@@ -394,7 +395,7 @@ export default function PayrollProcess() {
                     >
                         {previewMutation.isPending ? (
                             <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <Loader size="small" variant="white" className="mr-2" />
                                 Generating Preview...
                             </>
                         ) : (

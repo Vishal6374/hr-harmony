@@ -21,7 +21,7 @@ export default function PayrollUnified() {
 
     return (
         <MainLayout>
-            <div className="space-y-6 animate-fade-in max-w-7xl mx-auto">
+            <div className="space-y-6 animate-fade-in  mx-auto">
                 <PageHeader
                     title="Payroll Management"
                     description={isHR ? "Process payroll for employees" : "View your salary slips"}

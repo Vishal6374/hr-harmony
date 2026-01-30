@@ -278,3 +278,17 @@ export const employeeDocumentService = {
     deleteDocument: (documentId: string) =>
         api.delete(`/employees/documents/${documentId}`),
 };
+
+// Resignation Services
+export const resignationService = {
+    getRequests: (params?: any) =>
+        api.get('/resignations', { params }),
+    apply: (data: any) =>
+        api.post('/resignations/apply', data),
+    approve: (id: string, data: { approved_last_working_day: string; hr_remarks?: string }) =>
+        api.post(`/resignations/${id}/approve`, data),
+    reject: (id: string, hr_remarks: string) =>
+        api.post(`/resignations/${id}/reject`, { hr_remarks }),
+    withdraw: (id: string) =>
+        api.post(`/resignations/${id}/withdraw`),
+};

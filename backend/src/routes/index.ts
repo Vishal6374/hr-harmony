@@ -14,6 +14,7 @@ import reimbursementRoutes from './reimbursementRoutes';
 import complaintRoutes from './complaintRoutes';
 import policyRoutes from './policyRoutes';
 import holidayRoutes from './holidayRoutes';
+import resignationRoutes from './resignationRoutes';
 
 const router = express.Router();
 
@@ -32,6 +33,7 @@ router.use('/reimbursements', reimbursementRoutes);
 router.use('/complaints', complaintRoutes);
 router.use('/policies', policyRoutes);
 router.use('/holidays', holidayRoutes);
+router.use('/resignations', resignationRoutes);
 
 // Health check
 router.get('/health', (_req, res) => {

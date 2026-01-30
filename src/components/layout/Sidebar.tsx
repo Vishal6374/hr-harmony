@@ -46,7 +46,7 @@ export function Sidebar() {
           <span className={cn(
             "font-bold text-primary-foreground text-xl transition-all duration-300",
             isCollapsed && "hidden"
-          )}>Catalyr</span>
+          )}>Catalyr HRMS</span>
         </div>
         <Button
           variant="ghost"
@@ -82,7 +82,7 @@ export function Sidebar() {
                   )}>
                     {item.title}
                   </span>
-                  
+
                   {isCollapsed && (
                     <div className="absolute left-full ml-2 px-2 py-1 bg-primary-foreground text-primary rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap text-sm font-medium z-50">
                       {item.title}
@@ -112,10 +112,10 @@ export function Sidebar() {
             <p className="text-sm font-medium text-primary-foreground truncate">{user?.name}</p>
             <p className="text-xs text-primary-foreground/60 truncate capitalize">{user?.role}</p>
           </div>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={logout} 
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={logout}
             className="text-primary-foreground/60 hover:text-destructive hover:bg-primary/80"
             title="Logout"
           >

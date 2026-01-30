@@ -4,7 +4,7 @@ import { config } from '../config';
 export const generateToken = (payload: {
     id: string;
     email: string;
-    role: 'hr' | 'employee';
+    role: 'admin' | 'hr' | 'employee';
 }): string => {
     return jwt.sign(payload, config.jwt.secret as any, {
         expiresIn: config.jwt.expiresIn as any,

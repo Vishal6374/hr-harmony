@@ -10,12 +10,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Search, MessageSquare, Lock, AlertCircle, Loader2 } from 'lucide-react';
+import { Plus, Search, MessageSquare, Lock, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { complaintService } from '@/services/apiService';
 import { toast } from 'sonner';
+import { PageLoader } from '@/components/ui/page-loader';
+import Loader from '@/components/ui/Loader';
 
 export default function Complaints() {
   const { isHR, user } = useAuth();
@@ -184,13 +186,7 @@ export default function Complaints() {
   ];
 
   if (isLoading) {
-    return (
-      <MainLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      </MainLayout>
-    );
+    return <PageLoader />;
   }
 
   const myComplaints = complaints.filter((c: any) => c.is_anonymous || c.employee_id === user?.id);
@@ -311,7 +307,7 @@ export default function Complaints() {
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
                 <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  {createMutation.isPending && <Loader size="small" variant="white" className="mr-2" />}
                   Submit Complaint
                 </Button>
               </DialogFooter>
@@ -362,7 +358,7 @@ export default function Complaints() {
                   onClick={() => selectedComplaint && respondMutation.mutate({ id: selectedComplaint.id, response, status: newStatus })}
                   disabled={!response || respondMutation.isPending}
                 >
-                  {respondMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  {respondMutation.isPending && <Loader size="small" variant="white" className="mr-2" />}
                   Submit Response
                 </Button>
               </DialogFooter>

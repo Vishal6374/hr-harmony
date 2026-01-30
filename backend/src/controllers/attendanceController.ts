@@ -10,8 +10,8 @@ export const getAttendanceLogs = async (req: AuthRequest, res: Response): Promis
 
     const where: any = {};
 
-    // If not HR, only show own attendance
-    if (req.user?.role !== 'hr') {
+    // If not HR/Admin, only show own attendance
+    if (req.user?.role !== 'hr' && req.user?.role !== 'admin') {
         where.employee_id = req.user?.id;
     } else if (employee_id) {
         where.employee_id = employee_id;
@@ -50,11 +50,28 @@ export const markAttendance = async (req: AuthRequest, res: Response): Promise<v
     try {
         const { employee_id, date, check_in, check_out, status, notes } = req.body;
 
+        const isHRorAdmin = req.user?.role === 'hr' || req.user?.role === 'admin';
         // Only HR can mark attendance for others
-        const targetEmployeeId = req.user?.role === 'hr' ? employee_id : req.user?.id;
+        const targetEmployeeId = isHRorAdmin ? employee_id : req.user?.id;
 
         if (!targetEmployeeId) {
             throw new AppError(400, 'Employee ID is required');
+        }
+
+        // Get attendance settings
+        const AttendanceSettings = (await import('../models/AttendanceSettings')).default;
+        let settings = await AttendanceSettings.findOne();
+        if (!settings) {
+            settings = await AttendanceSettings.create({
+                standard_work_hours: 8.00,
+                half_day_threshold: 4.00,
+                allow_self_clock_in: true,
+            });
+        }
+
+        // Check if employee is allowed to clock in themselves
+        if (!isHRorAdmin && !settings.allow_self_clock_in) {
+            throw new AppError(403, 'Self clock-in is currently disabled by the administrator');
         }
 
         // Ensure date is treated as YYYY-MM-DD
@@ -71,16 +88,6 @@ export const markAttendance = async (req: AuthRequest, res: Response): Promise<v
 
         if (existingLog?.is_locked) {
             throw new AppError(400, 'Attendance is locked for this date');
-        }
-
-        // Get attendance settings
-        const AttendanceSettings = (await import('../models/AttendanceSettings')).default;
-        let settings = await AttendanceSettings.findOne();
-        if (!settings) {
-            settings = await AttendanceSettings.create({
-                standard_work_hours: 8.00,
-                half_day_threshold: 4.00,
-            });
         }
 
         // Calculate work hours
@@ -295,3 +302,4 @@ export const getAttendanceSummary = async (req: AuthRequest, res: Response): Pro
 
     res.json(summary);
 };
+

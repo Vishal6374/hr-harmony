@@ -7,7 +7,7 @@ export interface AuthRequest extends Request {
     user?: {
         id: string;
         email: string;
-        role: 'hr' | 'employee';
+        role: 'admin' | 'hr' | 'employee';
     };
 }
 
@@ -30,7 +30,7 @@ export const authenticate = async (
             const decoded = jwt.verify(token, config.jwt.secret) as {
                 id: string;
                 email: string;
-                role: 'hr' | 'employee';
+                role: 'admin' | 'hr' | 'employee';
             };
 
             // Verify user still exists
@@ -62,8 +62,26 @@ export const requireHR = (
         return;
     }
 
-    if (req.user.role !== 'hr') {
-        res.status(403).json({ message: 'HR access required' });
+    if (req.user.role !== 'hr' && req.user.role !== 'admin') {
+        res.status(403).json({ message: 'HR or Admin access required' });
+        return;
+    }
+
+    next();
+};
+
+export const requireAdmin = (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+): void => {
+    if (!req.user) {
+        res.status(401).json({ message: 'Authentication required' });
+        return;
+    }
+
+    if (req.user.role !== 'admin') {
+        res.status(403).json({ message: 'Admin access required' });
         return;
     }
 
@@ -79,7 +97,7 @@ export const requireSelfOrHR = (idParam: string = 'id') => {
 
         const resourceId = req.params[idParam];
 
-        if (req.user.role === 'hr' || req.user.id === resourceId) {
+        if (req.user.role === 'hr' || req.user.role === 'admin' || req.user.id === resourceId) {
             next();
             return;
         }

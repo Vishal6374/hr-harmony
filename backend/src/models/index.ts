@@ -14,6 +14,7 @@ import Policy from './Policy';
 import Holiday from './Holiday';
 import AuditLog from './AuditLog';
 import EmployeeDocument from './EmployeeDocument';
+import Resignation from './Resignation';
 // Temporarily disabled to debug server crash
 // import SalaryStructure from './SalaryStructure';
 // import PayGroup from './PayGroup';
@@ -114,6 +115,10 @@ EmployeeDocument.belongsTo(User, { foreignKey: 'employee_id', as: 'employee', co
 User.hasMany(EmployeeDocument, { foreignKey: 'employee_id', as: 'documents', constraints: false });
 EmployeeDocument.belongsTo(User, { foreignKey: 'uploaded_by', as: 'uploader', constraints: false });
 
+// Resignation - User relationships
+Resignation.belongsTo(User, { foreignKey: 'employee_id', as: 'employee', constraints: false });
+User.hasMany(Resignation, { foreignKey: 'employee_id', as: 'resignations', constraints: false });
+
 export {
     User,
     Department,
@@ -131,6 +136,7 @@ export {
     Holiday,
     AuditLog,
     EmployeeDocument,
+    Resignation,
     // Temporarily disabled
     // SalaryStructure,
     // PayGroup,
@@ -158,6 +164,7 @@ export default {
     Holiday,
     AuditLog,
     EmployeeDocument,
+    Resignation,
     // Temporarily disabled
     // SalaryStructure,
     // PayGroup,

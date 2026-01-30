@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { PageLoader } from '@/components/ui/page-loader';
 
 export default function Leaves() {
   const { isHR, user } = useAuth();
@@ -139,13 +140,7 @@ export default function Leaves() {
   const getEmployeeDetails = (employeeId: string) => employees.find((e: any) => e.id === employeeId);
 
   if (leavesLoading) {
-    return (
-      <MainLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-muted-foreground">Loading leaves...</div>
-        </div>
-      </MainLayout>
-    );
+    return <PageLoader />;
   }
 
   const hrColumns: Column<any>[] = [

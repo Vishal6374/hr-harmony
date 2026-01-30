@@ -5,11 +5,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { SidebarProvider } from "@/contexts/SidebarContext";
+import { useEffect, useState } from "react";
+import Preloader from "./components/layout/Preloader";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Departments from "./pages/Departments";
 import Designations from "./pages/Designations";
 import Employees from "./pages/Employees";
+import AddEmployee from "./pages/AddEmployee";
 import Attendance from "./pages/Attendance";
 import PayrollUnified from "./pages/PayrollUnified";
 import Leaves from "./pages/Leaves";
@@ -17,6 +20,7 @@ import Reimbursements from "./pages/Reimbursements";
 import Complaints from "./pages/Complaints";
 import Policies from "./pages/Policies";
 import Holidays from "./pages/Holidays";
+import Resignations from "./pages/Resignations";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
@@ -56,6 +60,7 @@ function AppRoutes() {
       <Route path="/departments" element={<ProtectedRoute><Departments /></ProtectedRoute>} />
       <Route path="/designations" element={<ProtectedRoute><Designations /></ProtectedRoute>} />
       <Route path="/employees" element={<ProtectedRoute><Employees /></ProtectedRoute>} />
+      <Route path="/employees/new" element={<ProtectedRoute><AddEmployee /></ProtectedRoute>} />
       <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
       <Route path="/payroll" element={<ProtectedRoute><PayrollUnified /></ProtectedRoute>} />
       <Route path="/leaves" element={<ProtectedRoute><Leaves /></ProtectedRoute>} />
@@ -71,20 +76,33 @@ function AppRoutes() {
   );
 }
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <SidebarProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
-        </SidebarProvider>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate initial app loading
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AuthProvider>
+          <Preloader loading={loading} />
+          <SidebarProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </SidebarProvider>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

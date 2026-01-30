@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { attendanceService } from '@/services/apiService';
 import { toast } from 'sonner';
@@ -22,17 +23,19 @@ export function AttendanceSettings() {
     const [formData, setFormData] = useState({
         standard_work_hours: settings?.standard_work_hours || 8,
         half_day_threshold: settings?.half_day_threshold || 4,
+        allow_self_clock_in: settings?.allow_self_clock_in ?? true,
     });
 
     // Update form when settings load
-    useState(() => {
+    useEffect(() => {
         if (settings) {
             setFormData({
                 standard_work_hours: settings.standard_work_hours,
                 half_day_threshold: settings.half_day_threshold,
+                allow_self_clock_in: settings.allow_self_clock_in ?? true,
             });
         }
-    });
+    }, [settings]);
 
     const updateMutation = useMutation({
         mutationFn: (data: any) => attendanceService.updateSettings(data),
@@ -131,6 +134,19 @@ export function AttendanceSettings() {
                                 Minimum for "Half Day" status
                             </p>
                         </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 border rounded-lg bg-slate-50/50">
+                        <div className="space-y-0.5">
+                            <Label className="text-base">Allow Self Clock-In</Label>
+                            <p className="text-xs text-muted-foreground">
+                                Enable employees to clock in/out themselves. If disabled, only HR can mark attendance.
+                            </p>
+                        </div>
+                        <Switch
+                            checked={formData.allow_self_clock_in}
+                            onCheckedChange={(checked) => setFormData({ ...formData, allow_self_clock_in: checked })}
+                        />
                     </div>
 
                     {/* Info Box */}
