@@ -123,7 +123,7 @@ export default function Login() {
           <p className="text-sm italic text-blue-100/60">
             "Catalyr has completely transformed our HR processes. Highly recommended for any growing enterprise."
           </p>
-          <p className="mt-2 text-sm font-semibold">— Founder @ Catalyr</p>
+          <p className="mt-2 text-sm font-semibold">— Founder @ Pebbles</p>
         </motion.div>
       </div>
 

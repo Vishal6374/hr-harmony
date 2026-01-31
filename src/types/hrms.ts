@@ -34,27 +34,31 @@ export interface Designation {
 
 export interface Employee {
   id: string;
-  employeeId: string;
+  employee_id: string;
   name: string;
   email: string;
   phone: string;
-  dateOfBirth: Date;
-  dateOfJoining: Date;
-  departmentId: string;
-  designationId: string;
-  reportingManagerId?: string;
+  date_of_birth?: string | Date;
+  date_of_joining: string | Date;
+  department_id?: string;
+  designation_id?: string;
+  reporting_manager_id?: string;
   salary: number;
   role: UserRole;
   status: 'active' | 'inactive' | 'on_leave' | 'terminated';
   address: string;
-  avatar?: string;
-  bankName?: string;
-  accountNumber?: string;
-  ifscCode?: string;
-  branchName?: string;
+  avatar_url?: string;
+  bank_name?: string;
+  account_number?: string;
+  ifsc_code?: string;
+  branch_name?: string;
   onboarding_status: 'pending' | 'approved' | 'locked';
   department?: Department;
   designation?: Designation;
+  // Legacy camelCase if needed, but preferable to use snake_case for backend fields
+  employeeId?: string;
+  dateOfBirth?: Date;
+  dateOfJoining?: Date;
 }
 
 export type AttendanceStatus = 'present' | 'absent' | 'half_day' | 'on_leave' | 'holiday' | 'weekend';

@@ -169,7 +169,15 @@ export default function Payroll() {
   const mySlipColumns: Column<SalarySlip>[] = [
     { key: 'period', header: 'Period', cell: (slip) => <span className="font-medium">{format(new Date(slip.year, slip.month - 1), 'MMMM yyyy')}</span> },
     { key: 'gross_salary', header: 'Gross Salary', cell: (slip) => <span>${Number(slip.gross_salary).toLocaleString()}</span> },
-    { key: 'deductions', header: 'Deductions', cell: (slip) => <span className="text-destructive">-${(Number(slip.deductions?.pf || 0) + Number(slip.deductions?.tax || 0)).toLocaleString()}</span> },
+    {
+      key: 'deductions',
+      header: 'Deductions',
+      cell: (slip) => {
+        const d = (slip as any).deductions || {};
+        const total = Number(d.pf || 0) + Number(d.tax || 0) + Number(d.esi || 0) + Number(d.loss_of_pay || 0) + Number(d.other || 0);
+        return <span className="text-destructive">-${total.toLocaleString()}</span>;
+      }
+    },
     { key: 'net_salary', header: 'Net Pay', cell: (slip) => <span className="font-bold text-lg">${Number(slip.net_salary).toLocaleString()}</span> },
     { key: 'status', header: 'Status', cell: (slip) => <StatusBadge status={slip.status} /> },
     {

@@ -79,11 +79,12 @@ export function SalarySlipDialog({
 
     const pf = getVal(slipData.deductions?.pf);
     const tax = getVal(slipData.deductions?.tax);
+    const esi = getVal(slipData.deductions?.esi);
     const lop = getVal(slipData.deductions?.loss_of_pay) || getVal(slipData.lop); // Legacy support
     const otherDeductions = getVal(slipData.deductions?.other) || getVal(slipData.other_deductions); // Legacy support
 
     const totalEarnings = basic + hra + da + reimbursements + bonus;
-    const totalDeductions = pf + tax + lop + otherDeductions;
+    const totalDeductions = pf + tax + esi + lop + otherDeductions;
     // Use slip.net_salary if reliable, otherwise recalc? Stick to slip.net_salary for consistency with DB
     const netSalary = getVal(slipData.net_salary);
 
@@ -213,6 +214,12 @@ export function SalarySlipDialog({
                                         <span className="text-gray-600">Professional Tax</span>
                                         <span className="font-medium">{tax.toLocaleString()}</span>
                                     </div>
+                                    {(esi > 0) && (
+                                        <div className="flex justify-between p-3 border-b border-dashed text-sm">
+                                            <span className="text-gray-600">ESI Deduction</span>
+                                            <span className="font-medium">{esi.toLocaleString()}</span>
+                                        </div>
+                                    )}
                                     {(lop > 0) && (
                                         <div className="flex justify-between p-3 border-b border-dashed text-sm text-red-600/80">
                                             <span className="text-gray-600">Loss of Pay</span>

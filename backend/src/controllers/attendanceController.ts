@@ -156,9 +156,9 @@ export const markAttendance = async (req: AuthRequest, res: Response): Promise<v
 
 export const updateAttendance = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        // Only HR can update attendance
-        if (req.user?.role !== 'hr') {
-            throw new AppError(403, 'Only HR can update attendance records');
+        // Only HR or Admin can update attendance
+        if (req.user?.role !== 'hr' && req.user?.role !== 'admin') {
+            throw new AppError(403, 'Only HR or Admin can update attendance records');
         }
 
         const { id } = req.params;
@@ -247,8 +247,8 @@ export const updateAttendance = async (req: AuthRequest, res: Response): Promise
 export const lockAttendance = async (req: AuthRequest, res: Response): Promise<void> => {
     const { month, year } = req.body;
 
-    if (req.user?.role !== 'hr') {
-        throw new AppError(403, 'Only HR can lock attendance');
+    if (req.user?.role !== 'hr' && req.user?.role !== 'admin') {
+        throw new AppError(403, 'Only HR or Admin can lock attendance');
     }
 
     const startDate = new Date(year, month - 1, 1);
@@ -271,7 +271,8 @@ export const lockAttendance = async (req: AuthRequest, res: Response): Promise<v
 export const getAttendanceSummary = async (req: AuthRequest, res: Response): Promise<void> => {
     const { employee_id, month, year } = req.query;
 
-    const targetEmployeeId = req.user?.role === 'hr' ? (employee_id as string) : req.user?.id;
+    const isHRorAdmin = req.user?.role === 'hr' || req.user?.role === 'admin';
+    const targetEmployeeId = isHRorAdmin ? (employee_id as string) : req.user?.id;
 
     if (!targetEmployeeId) {
         throw new AppError(400, 'Employee ID is required');

@@ -17,6 +17,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { employeeService, departmentService, designationService } from '@/services/apiService';
 import { toast } from 'sonner';
 import { TerminateEmployeeModal } from '@/components/employees/TerminateEmployeeModal';
+import { EmployeeDetailsSheet } from '@/components/employees/EmployeeDetailsSheet';
 import { PageLoader } from '@/components/ui/page-loader';
 import Loader from '@/components/ui/Loader';
 
@@ -30,6 +31,8 @@ export default function Employees() {
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [isTerminateModalOpen, setIsTerminateModalOpen] = useState(false);
   const [employeeToTerminate, setEmployeeToTerminate] = useState<any>(null);
+  const [isDetailsSheetOpen, setIsDetailsSheetOpen] = useState(false);
+  const [currentDetailsEmployee, setCurrentDetailsEmployee] = useState<Employee | null>(null);
 
   // Form Data
   const [formData, setFormData] = useState({
@@ -170,19 +173,24 @@ export default function Employees() {
     }
   };
 
+  const openDetailsSheet = (emp: Employee) => {
+    setCurrentDetailsEmployee(emp);
+    setIsDetailsSheetOpen(true);
+  };
+
   const columns: Column<Employee>[] = [
     {
       key: 'employee',
       header: 'Employee',
       cell: (emp) => (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => openDetailsSheet(emp)}>
           <Avatar className="h-10 w-10">
-            <AvatarImage src={emp.avatar} alt={emp.name} />
+            <AvatarImage src={emp.avatar_url} alt={emp.name} />
             <AvatarFallback>{emp.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <div>
             <p className="font-medium">{emp.name}</p>
-            <p className="text-xs text-muted-foreground">{emp.employeeId}</p>
+            <p className="text-xs text-muted-foreground">{emp.employee_id}</p>
           </div>
         </div>
       ),
@@ -197,6 +205,9 @@ export default function Employees() {
       header: '',
       cell: (emp) => (
         <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDetailsSheet(emp)} title="View Details">
+            <Eye className="w-4 h-4" />
+          </Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(emp)} title="Edit">
             <Pencil className="w-4 h-4" />
           </Button>
@@ -424,6 +435,13 @@ export default function Employees() {
             isLoading={terminateMutation.isPending}
           />
         )}
+
+        {/* Employee Details Sheet */}
+        <EmployeeDetailsSheet
+          open={isDetailsSheetOpen}
+          onOpenChange={setIsDetailsSheetOpen}
+          employee={currentDetailsEmployee}
+        />
       </div>
     </MainLayout>
   );

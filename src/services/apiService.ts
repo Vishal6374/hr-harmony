@@ -134,6 +134,14 @@ export const payrollService = {
     markPaid: (id: string) =>
         api.post(`/payroll/batches/${id}/mark-paid`),
 
+    // Get payroll stats
+    getStats: () =>
+        api.get('/payroll/stats'),
+
+    // Shortcut to generate payroll
+    generate: (month: number, year: number) =>
+        api.post('/payroll/generate', { month, year }),
+
     // Salary Structure
     getSalaryStructures: () =>
         api.get('/payroll-config/salary-structures'),

@@ -20,6 +20,12 @@ router.post('/preview', requireHR, asyncHandler(payrollController.previewPayroll
 // Process payroll (HR only)
 router.post('/process', requireHR, asyncHandler(payrollController.processPayroll));
 
+// Shortcut to generate for all (HR only)
+router.post('/generate', requireHR, asyncHandler(payrollController.generatePayroll));
+
+// Get payroll stats (HR only)
+router.get('/stats', requireHR, asyncHandler(payrollController.getPayrollStats));
+
 // Mark payroll as paid (HR only)
 router.post('/batches/:id/mark-paid', requireHR, asyncHandler(payrollController.markPayrollPaid));
 

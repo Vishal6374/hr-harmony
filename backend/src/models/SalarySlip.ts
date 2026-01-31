@@ -19,6 +19,7 @@ export interface SalarySlipAttributes {
         tax: number;
         loss_of_pay: number;
         other: number;
+        esi: number;
     };
     gross_salary: number;
     net_salary: number;
@@ -59,6 +60,7 @@ class SalarySlip extends Model<SalarySlipAttributes, SalarySlipCreationAttribute
         tax: number;
         loss_of_pay: number;
         other: number;
+        esi: number;
     };
     public gross_salary!: number;
     public net_salary!: number;
@@ -138,7 +140,7 @@ SalarySlip.init(
         deductions: {
             type: DataTypes.JSON,
             allowNull: true,
-            defaultValue: { pf: 0, tax: 0, loss_of_pay: 0, other: 0 },
+            defaultValue: { pf: 0, tax: 0, loss_of_pay: 0, other: 0, esi: 0 },
         },
         gross_salary: {
             type: DataTypes.DECIMAL(10, 2),
