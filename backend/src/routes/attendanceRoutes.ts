@@ -4,6 +4,7 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { auditLog } from '../middleware/auditLog';
 import * as attendanceController from '../controllers/attendanceController';
 import * as attendanceSettingsController from '../controllers/attendanceSettingsController';
+import * as biometricController from '../controllers/BiometricController';
 
 const router = express.Router();
 
@@ -17,6 +18,12 @@ router.post('/lock', authenticate, requireHR, auditLog('attendance', 'lock'), as
 // Attendance settings
 router.get('/settings', authenticate, asyncHandler(attendanceSettingsController.getAttendanceSettings));
 router.put('/settings', authenticate, requireHR, auditLog('attendance_settings', 'update'), asyncHandler(attendanceSettingsController.updateAttendanceSettings));
+
+// Biometric Sync Service
+router.put('/config', authenticate, requireHR, auditLog('attendance', 'update_config'), asyncHandler(biometricController.updateConfig));
+router.post('/validate', authenticate, requireHR, asyncHandler(biometricController.validateSystem));
+router.post('/sync', authenticate, requireHR, asyncHandler(biometricController.triggerSync));
+router.get('/sync/status', authenticate, requireHR, asyncHandler(biometricController.getSyncStatus));
 
 export default router;
 

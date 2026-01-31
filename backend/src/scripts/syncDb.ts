@@ -10,12 +10,16 @@ const sync = async () => {
 
         // Set to true to drop all tables and recreate
         const force = process.argv.includes('--force');
+        // Set to true to alter existing tables
+        const alter = process.argv.includes('--alter');
 
         if (force) {
             console.log('🔥 Force mode: Dropping all tables...');
+        } else if (alter) {
+            console.log('⚠️  Alter mode: Updating table schemas...');
         }
 
-        await syncDatabase(force);
+        await syncDatabase(force, alter);
 
         console.log('✅ Database synchronized successfully!');
         process.exit(0);

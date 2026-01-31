@@ -15,6 +15,7 @@ class SystemSettings extends Model {
     public payslip_header_name!: string;
     public payslip_logo_url!: string;
     public payslip_address!: string;
+    public attendance_config!: any; // JSON Config
     public created_at!: Date;
     public updated_at!: Date;
 }
@@ -79,6 +80,14 @@ SystemSettings.init(
             type: DataTypes.TEXT,
             allowNull: true,
             defaultValue: '123 Tech Park, Silicon Valley, CA',
+        },
+        attendance_config: {
+            type: DataTypes.JSON,
+            allowNull: true,
+            defaultValue: {
+                mode: "NORMAL",
+                sync_enabled: false
+            }
         },
     },
     {

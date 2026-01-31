@@ -15,6 +15,12 @@ export interface AttendanceLogAttributes {
     edit_reason?: string;
     created_at?: Date;
     updated_at?: Date;
+    raw_punch_ids?: string[]; // JSON array of UUIDs
+    overtime_hours?: number;
+    late_minutes?: number;
+    is_manual_override?: boolean;
+    calculation_version?: number;
+    attendance_source?: 'BIOMETRIC' | 'MANUAL' | 'ADJUSTED';
 }
 
 export interface AttendanceLogCreationAttributes extends Optional<AttendanceLogAttributes, 'id' | 'is_locked' | 'created_at' | 'updated_at'> { }
@@ -34,6 +40,13 @@ class AttendanceLog extends Model<AttendanceLogAttributes, AttendanceLogCreation
 
     public readonly created_at!: Date;
     public readonly updated_at!: Date;
+
+    public raw_punch_ids?: string[];
+    public overtime_hours?: number;
+    public late_minutes?: number;
+    public is_manual_override?: boolean;
+    public calculation_version?: number;
+    public attendance_source?: 'BIOMETRIC' | 'MANUAL' | 'ADJUSTED';
 }
 
 AttendanceLog.init(
@@ -84,6 +97,30 @@ AttendanceLog.init(
         edit_reason: {
             type: DataTypes.TEXT,
             allowNull: true,
+        },
+        raw_punch_ids: {
+            type: DataTypes.JSON,
+            allowNull: true,
+        },
+        overtime_hours: {
+            type: DataTypes.FLOAT,
+            defaultValue: 0,
+        },
+        late_minutes: {
+            type: DataTypes.INTEGER,
+            defaultValue: 0,
+        },
+        is_manual_override: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
+        },
+        calculation_version: {
+            type: DataTypes.INTEGER,
+            defaultValue: 1,
+        },
+        attendance_source: {
+            type: DataTypes.ENUM('BIOMETRIC', 'MANUAL', 'ADJUSTED'),
+            defaultValue: 'MANUAL', // Default to manual for backward compatibility
         },
     },
     {

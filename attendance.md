@@ -208,3 +208,54 @@ Before setting `system_settings.sync_enabled = true` and `mode = BIOMETRIC`, the
 
 8.  **Clock Drift Policy**:
     *   [ ] Ensure acceptable drift policy is configured. WARN if exceeded.
+
+---
+
+## 5. System Flow & Connectivity
+
+This section describes how the Biometric System connects to the HRMS and how data flows between them.
+
+### A. Connectivity Architecture
+
+The system operates in one of two modes, determined by the `attendance_mode` flag in System Settings.
+
+#### 1. Normal Mode (Manual)
+*   **Connectivity**: No external connection.
+*   **Flow**: User -> HRMS UI -> `daily_attendance` table.
+*   **Description**: Attendance is marked manually by employees (if self-service enabled) or HR/Admins directly into the database.
+
+#### 2. Biometric Mode (Automated)
+*   **Connectivity**: The HRMS backend connects to *one* of two source types:
+    *   **ESSL Database (Middleware Strategy)**: The HRMS connects to an external MSSQL/MySQL database (e.g., `eTimeTrackLite`). This is the *preferred* method for stability. The biometric devices push data to this external DB, and HRMS pulls from it.
+    *   **Direct Device (IoT Strategy)**: The HRMS connects directly to the physical biometric device via TCP/IP (e.g., Port 4370) using a specific protocol (ZK/ESSL).
+*   **Flow**: Validated Source -> `raw_punch_logs` -> Processing Engine -> `daily_attendance` table.
+
+### B. Data Flow Process
+
+1.  **Ingestion (Sync)**:
+    *   **Trigger**: A Cron job (scheduled task) or Manual Trigger initiates the sync.
+    *   **Fetch**: The `BiometricService` connects to the configured source (DB or Device) and fetches punch logs.
+    *   **Filter**: It fetches records newer than the last successful sync timestamp.
+    *   **Store**: Records are inserted into the `raw_punch_logs` table.
+    *   **Deduplication**: A composite unique key `(biometric_id, punch_datetime, device_ip)` prevents duplicate entries if the source sends them again.
+
+2.  **Processing (Calculation)**:
+    *   **Trigger**: Runs immediately after Ingestion.
+    *   **Grouping**: Raw logs are grouped by `biometric_id` (Employee) and Date.
+    *   **Mapping**: The system maps `biometric_id` to the local `employee_id`.
+    *   **Logic**:
+        *   **Earliest Punch** becomes `check_in`.
+        *   **Latest Punch** becomes `check_out`.
+    *   **Calculation**: Work hours are computed (`check_out - check_in`).
+    *   **Status Determination**:
+        *   If `work_hours` >= Standard Hours → `PRESENT`
+        *   If `work_hours` >= Half-Day Threshold → `HALF_DAY`
+        *   Else → `ABSENT` (or `status` remains if no punches found yet).
+    *   **Persistence**: The final status is upserted into the `daily_attendance` table.
+
+### C. Error Handling Flow
+*   **Connection Failure**: If the biometric source is unreachable, the system enters a `PAUSED` state. No data is lost; sync resumes from the last checkpoint once connectivity is restored.
+*   **Mapping Failure**: If a `biometric_id` (e.g., "999") doesn't match any `employee_code`, the raw log is saved but marked as `FAILED` (or `UNMAPPED`), alerting HR to fix employee master data.
+
+## Implementation Status
+- [x] Implementation Completed at 2026-01-31T14:55:00+05:30
