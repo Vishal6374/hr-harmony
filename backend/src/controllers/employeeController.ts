@@ -43,6 +43,7 @@ export const getAllEmployees = async (req: AuthRequest, res: Response): Promise<
             { association: 'department' },
             { association: 'designation' },
             { association: 'reportingManager', attributes: ['id', 'name', 'email'] },
+            { association: 'documents' },
         ],
         limit: Number(limit),
         offset,
@@ -266,7 +267,11 @@ export const updateEmployee = async (req: AuthRequest, res: Response): Promise<v
     if (education !== undefined) employee.education = education;
     if (aadhaar_number !== undefined) employee.aadhaar_number = aadhaar_number;
     if (pan_number !== undefined) employee.pan_number = pan_number;
-    if (custom_fields !== undefined) employee.custom_fields = custom_fields;
+    if (custom_fields !== undefined) {
+        employee.custom_fields = custom_fields;
+        // Force update for JSON fields in case Sequelize doesn't detect deep changes
+        employee.changed('custom_fields', true);
+    }
 
     // If status is changed to terminated, clear sensitive details
     if (status === 'terminated') {

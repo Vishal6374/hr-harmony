@@ -63,6 +63,14 @@ export interface Employee {
   employeeId?: string;
   dateOfBirth?: Date;
   dateOfJoining?: Date;
+  documents?: {
+    id: string;
+    employee_id: string;
+    document_type: string;
+    file_path: string;
+    file_url: string;
+    created_at: string;
+  }[];
 }
 
 export type AttendanceStatus = 'present' | 'absent' | 'half_day' | 'on_leave' | 'holiday' | 'weekend';

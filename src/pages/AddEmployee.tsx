@@ -11,13 +11,22 @@ import { Textarea } from '@/components/ui/textarea';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { employeeService, departmentService, designationService } from '@/services/apiService';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, User, Briefcase, CreditCard, FileText, Check, Upload, Trash2, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, User, Briefcase, CreditCard, FileText, Check, Upload, Trash2, Plus, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import Loader from '@/components/ui/Loader';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { employeeDocumentService } from '@/services/apiService';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
 
 const steps = [
     { id: 'personal', title: 'Personal Info', icon: User },
@@ -33,6 +42,15 @@ export default function AddEmployee() {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [currentStep, setCurrentStep] = useState(0);
+
+    // Custom Fields Modal State
+    const [isCustomFieldModalOpen, setIsCustomFieldModalOpen] = useState(false);
+    const [newCustomFieldName, setNewCustomFieldName] = useState('');
+
+    // Custom Document Modal State
+    const [isCustomDocModalOpen, setIsCustomDocModalOpen] = useState(false);
+    const [newCustomDocName, setNewCustomDocName] = useState('');
+
     const [formData, setFormData] = useState({
         avatar_url: '',
         name: '',
@@ -113,7 +131,9 @@ export default function AddEmployee() {
                 education: employeeToEdit.education || '',
                 aadhaar_number: employeeToEdit.aadhaar_number || '',
                 pan_number: employeeToEdit.pan_number || '',
-                custom_fields: employeeToEdit.custom_fields || {},
+                custom_fields: typeof employeeToEdit.custom_fields === 'string'
+                    ? JSON.parse(employeeToEdit.custom_fields)
+                    : (employeeToEdit.custom_fields || {}),
             });
 
             if (employeeToEdit.documents && Array.isArray(employeeToEdit.documents)) {
@@ -123,6 +143,13 @@ export default function AddEmployee() {
                     const idx = existingDocs.findIndex(d => d.type === doc.document_type);
                     if (idx !== -1) {
                         existingDocs[idx] = { ...existingDocs[idx], url: doc.file_url };
+                    } else {
+                        // Add as new custom type if not exists in default list
+                        existingDocs.push({
+                            type: doc.document_type,
+                            file: null,
+                            url: doc.file_url
+                        });
                     }
                 });
                 setDocuments(existingDocs);
@@ -204,6 +231,23 @@ export default function AddEmployee() {
 
     const updateFormData = (field: string, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const addCustomField = () => {
+        if (newCustomFieldName) {
+            const newFields = { ...formData.custom_fields, [newCustomFieldName]: '' };
+            updateFormData('custom_fields', newFields);
+            setNewCustomFieldName('');
+            setIsCustomFieldModalOpen(false);
+        }
+    };
+
+    const addCustomDocument = () => {
+        if (newCustomDocName) {
+            setDocuments([...documents, { type: newCustomDocName, file: null }]);
+            setNewCustomDocName('');
+            setIsCustomDocModalOpen(false);
+        }
     };
 
     if (isEdit && isEmployeeLoading) {
@@ -341,15 +385,39 @@ export default function AddEmployee() {
                                             <div className="sm:col-span-2 space-y-4 pt-4 border-t">
                                                 <div className="flex items-center justify-between">
                                                     <Label className="text-sm font-bold">Custom Fields</Label>
-                                                    <Button type="button" variant="outline" size="sm" onClick={() => {
-                                                        const name = prompt('Enter field name:');
-                                                        if (name) {
-                                                            const newFields = { ...formData.custom_fields, [name]: '' };
-                                                            updateFormData('custom_fields', newFields);
-                                                        }
-                                                    }}>
-                                                        <Plus className="w-3 h-3 mr-1" /> Add Field
-                                                    </Button>
+                                                    <Dialog open={isCustomFieldModalOpen} onOpenChange={setIsCustomFieldModalOpen}>
+                                                        <DialogTrigger asChild>
+                                                            <Button type="button" variant="outline" size="sm">
+                                                                <Plus className="w-3 h-3 mr-1" /> Add Field
+                                                            </Button>
+                                                        </DialogTrigger>
+                                                        <DialogContent>
+                                                            <DialogHeader>
+                                                                <DialogTitle>Add Custom Field</DialogTitle>
+                                                                <DialogDescription>
+                                                                    Enter the name of the new custom field you want to add.
+                                                                </DialogDescription>
+                                                            </DialogHeader>
+                                                            <div className="grid gap-4 py-4">
+                                                                <div className="grid grid-cols-4 items-center gap-4">
+                                                                    <Label htmlFor="fieldName" className="text-right">
+                                                                        Name
+                                                                    </Label>
+                                                                    <Input
+                                                                        id="fieldName"
+                                                                        value={newCustomFieldName}
+                                                                        onChange={(e) => setNewCustomFieldName(e.target.value)}
+                                                                        className="col-span-3"
+                                                                        placeholder="e.g. Employee Type"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            <DialogFooter>
+                                                                <Button type="button" variant="secondary" onClick={() => setIsCustomFieldModalOpen(false)}>Cancel</Button>
+                                                                <Button type="button" onClick={addCustomField}>Add Field</Button>
+                                                            </DialogFooter>
+                                                        </DialogContent>
+                                                    </Dialog>
                                                 </div>
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                     {Object.entries(formData.custom_fields || {}).map(([key, value]: [string, any]) => (
@@ -489,7 +557,43 @@ export default function AddEmployee() {
 
                                 {currentStep === 3 && (
                                     <div className="space-y-6">
-                                        <p className="text-sm text-muted-foreground">Upload mandatory documents for verification. Max file size: 5MB per file.</p>
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-sm text-muted-foreground">Upload mandatory documents for verification. Max file size: 5MB per file.</p>
+                                            <Dialog open={isCustomDocModalOpen} onOpenChange={setIsCustomDocModalOpen}>
+                                                <DialogTrigger asChild>
+                                                    <Button type="button" variant="outline" size="sm">
+                                                        <Plus className="w-3 h-3 mr-1" /> Add Document
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent>
+                                                    <DialogHeader>
+                                                        <DialogTitle>Add Custom Document</DialogTitle>
+                                                        <DialogDescription>
+                                                            Enter the name of the new document type.
+                                                        </DialogDescription>
+                                                    </DialogHeader>
+                                                    <div className="grid gap-4 py-4">
+                                                        <div className="grid grid-cols-4 items-center gap-4">
+                                                            <Label htmlFor="docName" className="text-right">
+                                                                Doc Name
+                                                            </Label>
+                                                            <Input
+                                                                id="docName"
+                                                                value={newCustomDocName}
+                                                                onChange={(e) => setNewCustomDocName(e.target.value)}
+                                                                className="col-span-3"
+                                                                placeholder="e.g. Previous Experience Letter"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <DialogFooter>
+                                                        <Button type="button" variant="secondary" onClick={() => setIsCustomDocModalOpen(false)}>Cancel</Button>
+                                                        <Button type="button" onClick={addCustomDocument}>Add Document</Button>
+                                                    </DialogFooter>
+                                                </DialogContent>
+                                            </Dialog>
+                                        </div>
+
                                         <div className="space-y-3">
                                             {documents.map((doc, idx) => (
                                                 <div key={idx} className="flex items-center justify-between p-4 bg-muted/40 rounded-xl border-2 border-dashed border-muted transition-all hover:bg-muted/60 group">

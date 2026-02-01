@@ -36,6 +36,8 @@ export interface UserAttributes {
     tax_regime?: 'new' | 'old';
     bank_account_number?: string;
     bank_ifsc?: string;
+    reset_password_token?: string;
+    reset_password_expires?: Date;
     created_at?: Date;
     updated_at?: Date;
 }
@@ -75,7 +77,10 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
     public custom_fields?: any;
     public tax_regime?: 'new' | 'old';
     public bank_account_number?: string;
+
     public bank_ifsc?: string;
+    public reset_password_token?: string;
+    public reset_password_expires?: Date;
 
     // Associations
     public readonly department?: any; // To avoid circular dependency with Department model type
@@ -240,6 +245,14 @@ User.init(
         },
         bank_ifsc: {
             type: DataTypes.STRING(20),
+            allowNull: true,
+        },
+        reset_password_token: {
+            type: DataTypes.STRING,
+            allowNull: true,
+        },
+        reset_password_expires: {
+            type: DataTypes.DATE,
             allowNull: true,
         },
     },

@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { Button } from "@/components/ui/button";
 import {
     User, Mail, Phone, MapPin, Calendar,
     Building2, Briefcase, DollarSign, University,
@@ -229,11 +230,39 @@ export function EmployeeDetailsSheet({ employee, open, onOpenChange }: EmployeeD
                     </TabsContent>
 
                     <TabsContent value="documents" className="space-y-6">
-                        <div className="flex flex-col items-center justify-center p-12 bg-muted/20 border-2 border-dashed rounded-2xl text-center">
-                            <FileText className="w-10 h-10 text-muted-foreground mb-4 opacity-20" />
-                            <h3 className="text-lg font-semibold">Employee Documents</h3>
-                            <p className="text-sm text-muted-foreground max-w-[280px]">HR can view full document audit history in the main Employee Management module.</p>
-                        </div>
+                        {employee.documents && employee.documents.length > 0 ? (
+                            <div className="space-y-3">
+                                {employee.documents.map((doc, idx) => (
+                                    <div key={idx} className="flex items-center justify-between p-4 bg-muted/40 rounded-xl border transition-all hover:bg-muted/60">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-lg bg-background flex items-center justify-center shadow-sm">
+                                                <FileText className="w-5 h-5 text-primary" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium">{doc.document_type || 'Document'}</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Uploaded on {doc.created_at ? format(new Date(doc.created_at), 'MMM dd, yyyy') : 'Recently'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-8"
+                                            onClick={() => window.open(doc.file_url, '_blank')}
+                                        >
+                                            View
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center p-12 bg-muted/20 border-2 border-dashed rounded-2xl text-center">
+                                <FileText className="w-10 h-10 text-muted-foreground mb-4 opacity-20" />
+                                <h3 className="text-lg font-semibold">No Documents Found</h3>
+                                <p className="text-sm text-muted-foreground max-w-[280px]">No documents have been uploaded for this employee yet.</p>
+                            </div>
+                        )}
                     </TabsContent>
                 </Tabs>
 

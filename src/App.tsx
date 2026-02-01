@@ -9,6 +9,8 @@ import { SystemSettingsProvider } from "@/contexts/SystemSettingsContext";
 import { useEffect, useState } from "react";
 import Preloader from "./components/layout/Preloader";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Departments from "./pages/Departments";
 import Designations from "./pages/Designations";
@@ -70,6 +72,8 @@ function AppRoutes() {
     <Routes>
       {/* Public Routes */}
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+      <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+      <Route path="/reset-password" element={<PublicRoute><ResetPassword /></PublicRoute>} />
 
       {/* Protected Routes */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

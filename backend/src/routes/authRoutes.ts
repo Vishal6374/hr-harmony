@@ -6,6 +6,8 @@ import * as authController from '../controllers/authController';
 const router = express.Router();
 
 router.post('/login', asyncHandler(authController.login));
+router.post('/forgot-password', asyncHandler(authController.forgotPassword));
+router.post('/reset-password', asyncHandler(authController.resetPassword));
 router.get('/profile', authenticate, asyncHandler(authController.getProfile));
 router.put('/profile', authenticate, asyncHandler(authController.updateProfile));
 router.post('/change-password', authenticate, asyncHandler(authController.changePassword));
