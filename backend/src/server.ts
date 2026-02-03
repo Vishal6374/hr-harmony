@@ -9,8 +9,8 @@ const startServer = async () => {
         // Test database connection
         await testConnection();
 
-        // Sync database in safe mode (creates missing tables)
-        await syncDatabase(false, false); // force=false, alter=false
+        // Sync database: automatically alter tables in development, safe mode otherwise
+        await syncDatabase(false, config.env === 'development');
         console.log('✅ Database sync completed successfully');
 
         // Check if DB needs seeding

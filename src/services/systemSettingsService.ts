@@ -14,6 +14,7 @@ export interface SystemSettings {
     payslip_header_name: string;
     payslip_logo_url?: string;
     payslip_address?: string;
+    hr_can_manage_employees: boolean;
 }
 
 export const getSystemSettings = async () => {

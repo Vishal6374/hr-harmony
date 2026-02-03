@@ -18,6 +18,7 @@ import Loader from '@/components/ui/Loader';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { employeeDocumentService } from '@/services/apiService';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSystemSettings } from '@/contexts/SystemSettingsContext';
 import {
     Dialog,
     DialogContent,
@@ -36,13 +37,18 @@ const steps = [
 ];
 
 export default function AddEmployee() {
-    const { isAdmin, isHR: authIsHR } = useAuth();
+    const { user, isAdmin } = useAuth();
+    const { settings } = useSystemSettings();
     const { id } = useParams();
     const isEdit = !!id;
     const navigate = useNavigate();
     const queryClient = useQueryClient();
 
-    if (!authIsHR) {
+    if (!user) return <Navigate to="/login" replace />;
+
+    const canManageEmployees = isAdmin || (user.role === 'hr' && settings?.hr_can_manage_employees);
+
+    if (!canManageEmployees) {
         return <Navigate to="/dashboard" replace />;
     }
 

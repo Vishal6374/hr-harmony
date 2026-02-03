@@ -16,6 +16,7 @@ class SystemSettings extends Model {
     public payslip_logo_url!: string;
     public payslip_address!: string;
     public attendance_config!: any; // JSON Config
+    public hr_can_manage_employees!: boolean;
     public created_at!: Date;
     public updated_at!: Date;
 }
@@ -88,6 +89,11 @@ SystemSettings.init(
                 mode: "NORMAL",
                 sync_enabled: false
             }
+        },
+        hr_can_manage_employees: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: true,
         },
     },
     {

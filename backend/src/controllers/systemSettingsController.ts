@@ -46,6 +46,7 @@ export const updateSystemSettings = async (req: AuthRequest, res: Response): Pro
             'payslip_header_name',
             'payslip_logo_url',
             'payslip_address',
+            'hr_can_manage_employees',
         ];
 
         for (const field of allowedFields) {

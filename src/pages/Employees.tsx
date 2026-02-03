@@ -17,9 +17,15 @@ import { toast } from 'sonner';
 import { TerminateEmployeeModal } from '@/components/employees/TerminateEmployeeModal';
 import { EmployeeDetailsSheet } from '@/components/employees/EmployeeDetailsSheet';
 import { PageLoader } from '@/components/ui/page-loader';
+import { useSystemSettings } from '@/contexts/SystemSettingsContext';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Settings2 } from 'lucide-react';
 
 export default function Employees() {
-  const { isHR } = useAuth();
+  const [currentDetailsEmployee, setCurrentDetailsEmployee] = useState<Employee | null>(null);
+  const { settings, updateSettings } = useSystemSettings();
+  const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
@@ -27,11 +33,12 @@ export default function Employees() {
   const [isTerminateModalOpen, setIsTerminateModalOpen] = useState(false);
   const [employeeToTerminate, setEmployeeToTerminate] = useState<any>(null);
   const [isDetailsSheetOpen, setIsDetailsSheetOpen] = useState(false);
-  const [currentDetailsEmployee, setCurrentDetailsEmployee] = useState<Employee | null>(null);
 
   const queryClient = useQueryClient();
 
-  if (!isHR) return <Navigate to="/dashboard" replace />;
+  if (!user || (!isAdmin && !user.role?.includes('hr') && user.role !== 'hr')) return <Navigate to="/dashboard" replace />;
+
+  const canManageEmployees = isAdmin || (user.role === 'hr' && settings?.hr_can_manage_employees);
 
   // Fetch Employees
   const { data, isLoading } = useQuery({
@@ -100,14 +107,17 @@ export default function Employees() {
           <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10" onClick={() => { setCurrentDetailsEmployee(emp); setIsDetailsSheetOpen(true); }}>
             <Eye className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600 hover:bg-amber-50" onClick={() => navigate(`/employees/edit/${emp.id}`)}>
-            <Pencil className="w-4 h-4" />
-          </Button>
-          {emp.status !== 'terminated' ? (
+          {canManageEmployees && (
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600 hover:bg-amber-50" onClick={() => navigate(`/employees/edit/${emp.id}`)}>
+              <Pencil className="w-4 h-4" />
+            </Button>
+          )}
+          {canManageEmployees && emp.status !== 'terminated' && (
             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => { setEmployeeToTerminate(emp); setIsTerminateModalOpen(true); }}>
               <UserX className="w-4 h-4" />
             </Button>
-          ) : (
+          )}
+          {canManageEmployees && emp.status === 'terminated' && (
             <Button variant="ghost" size="icon" className="h-8 w-8 text-success hover:bg-success/10" title="Reactivate (Not implemented)">
               <CheckCircle2 className="w-4 h-4" />
             </Button>
@@ -123,9 +133,26 @@ export default function Employees() {
     <MainLayout>
       <div className="space-y-6 animate-fade-in">
         <PageHeader title="Employees" description="Manage your team members and their information.">
-          <Button onClick={() => navigate('/employees/new')} className="shadow-lg shadow-primary/20">
-            <UserPlus className="w-4 h-4 mr-2" /> Add Employee
-          </Button>
+          <div className="flex items-center gap-4">
+            {isAdmin && (
+              <div className="flex items-center gap-2 bg-muted/50 px-4 py-2 rounded-xl border border-primary/10 shadow-sm mr-2">
+                <Settings2 className="w-4 h-4 text-primary/60" />
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="hr-manage" className="text-xs font-bold whitespace-nowrap cursor-pointer">HR Can Edit</Label>
+                  <Switch
+                    id="hr-manage"
+                    checked={settings?.hr_can_manage_employees}
+                    onCheckedChange={(checked) => updateSettings({ hr_can_manage_employees: checked })}
+                  />
+                </div>
+              </div>
+            )}
+            {canManageEmployees && (
+              <Button onClick={() => navigate('/employees/new')} className="shadow-lg shadow-primary/20">
+                <UserPlus className="w-4 h-4 mr-2" /> Add Employee
+              </Button>
+            )}
+          </div>
         </PageHeader>
 
         <div className="flex flex-col sm:flex-row gap-4 items-end sm:items-center justify-between p-4 bg-card border rounded-2xl shadow-sm">

@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth';
 import { Op } from 'sequelize';
 import User from '../models/User';
 import LeaveBalance from '../models/LeaveBalance';
+import SystemSettings from '../models/SystemSettings';
 import { generateEmployeeId } from '../utils/helpers';
 import { AppError } from '../middleware/errorHandler';
 import { logAudit } from '../utils/auditLogger';
@@ -129,8 +130,15 @@ export const createEmployee = async (req: AuthRequest, res: Response): Promise<v
     const employee_id = await generateEmployeeId();
 
     // Security: HR cannot create HR/Admin roles
-    if (req.user?.role === 'hr' && (role === 'admin' || role === 'hr')) {
-        throw new AppError(403, 'HR Administrator cannot create System Admin or HR roles');
+    if (req.user?.role === 'hr') {
+        const sysSettings = await SystemSettings.findOne();
+        if (sysSettings && !sysSettings.hr_can_manage_employees) {
+            throw new AppError(403, 'HR Administrator is currently restricted from creating employees');
+        }
+
+        if (role === 'admin' || role === 'hr') {
+            throw new AppError(403, 'HR Administrator cannot create System Admin or HR roles');
+        }
     }
 
     // Create user
@@ -237,9 +245,16 @@ export const updateEmployee = async (req: AuthRequest, res: Response): Promise<v
         }
     }
 
-    // Security: HR cannot promote to HR/Admin roles
-    if (req.user?.role === 'hr' && (role === 'admin' || role === 'hr') && role !== employee.role) {
-        throw new AppError(403, 'HR Administrator cannot assign System Admin or HR roles');
+    // Security: HR check
+    if (req.user?.role === 'hr') {
+        const sysSettings = await SystemSettings.findOne();
+        if (sysSettings && !sysSettings.hr_can_manage_employees) {
+            throw new AppError(403, 'HR Administrator is currently restricted from editing employees');
+        }
+
+        if ((role === 'admin' || role === 'hr') && role !== employee.role) {
+            throw new AppError(403, 'HR Administrator cannot assign System Admin or HR roles');
+        }
     }
 
     // Update allowed fields
@@ -324,6 +339,14 @@ export const terminateEmployee = async (req: AuthRequest, res: Response): Promis
 
     if (employee.status === 'terminated') {
         throw new AppError(400, 'Employee is already terminated');
+    }
+
+    // Security: HR check
+    if (req.user?.role === 'hr') {
+        const sysSettings = await SystemSettings.findOne();
+        if (sysSettings && !sysSettings.hr_can_manage_employees) {
+            throw new AppError(403, 'HR Administrator is currently restricted from terminating employees');
+        }
     }
 
     // Terminate employee
