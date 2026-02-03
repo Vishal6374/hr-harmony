@@ -22,7 +22,7 @@ export const getPayrollBatches = async (_req: AuthRequest, res: Response): Promi
 
 // Get salary slips
 export const getSalarySlips = async (req: AuthRequest, res: Response): Promise<void> => {
-    const { employee_id, month, year } = req.query;
+    const { employee_id, month, year, batch_id } = req.query;
 
     const where: any = {};
 
@@ -33,6 +33,7 @@ export const getSalarySlips = async (req: AuthRequest, res: Response): Promise<v
         where.employee_id = employee_id;
     }
 
+    if (batch_id) where.batch_id = batch_id;
     if (month) where.month = month;
     if (year) where.year = year;
 
@@ -68,8 +69,6 @@ export const processPayroll = async (req: AuthRequest, res: Response): Promise<v
 
     let batch;
     if (existing) {
-        // Delete old salary slips for this batch
-        await SalarySlip.destroy({ where: { batch_id: existing.id } });
         batch = existing;
     } else {
         // Create new payroll batch
@@ -92,6 +91,22 @@ export const processPayroll = async (req: AuthRequest, res: Response): Promise<v
 
     // Process each selected employee
     for (const employeeId of employee_ids) {
+        // Check if slip already exists for this employee in this month/year
+        // This is a safety check in case they were processed in a different batch
+        const existingSlip = await SalarySlip.findOne({
+            where: {
+                employee_id: employeeId,
+                month,
+                year,
+                // If it's the exact same slip we might be updating, but we delete all in batch above
+            }
+        });
+
+        if (existingSlip) {
+            console.log(`Employee ${employeeId} already has a ${existingSlip.status} payroll for ${month}/${year}. Skipping.`);
+            continue;
+        }
+
         const employee = await User.findByPk(employeeId);
 
         if (!employee) continue;
@@ -134,15 +149,14 @@ export const processPayroll = async (req: AuthRequest, res: Response): Promise<v
         const totalDeductions = Math.round(lop + otherDeductions + pf + esi);
         const netSalary = Math.round(grossSalary - totalDeductions);
 
-        // Create salary slip
-        const slip = await SalarySlip.create({
+        const slipData = {
             employee_id: employeeId,
             batch_id: batch.id,
             month,
             year,
             basic_salary: basicSalary,
             bonus,
-            lop,
+            lop: lop,
             other_deductions: otherDeductions,
             deductions: {
                 pf,
@@ -156,17 +170,19 @@ export const processPayroll = async (req: AuthRequest, res: Response): Promise<v
             present_days: presentDays,
             absent_days: absentDays,
             total_days: totalDays,
-            status: 'processed',
+            status: 'processed' as const,
             generated_at: new Date(),
-        });
+        };
 
+        const slip = await SalarySlip.create(slipData);
         salarySlips.push(slip);
         totalAmount += netSalary;
     }
 
-    // Update batch
-    batch.total_employees = salarySlips.length;
-    batch.total_amount = totalAmount;
+    // Update batch totals based on ALL slips in the batch
+    const allSlipsInBatch = await SalarySlip.findAll({ where: { batch_id: batch.id } });
+    batch.total_employees = allSlipsInBatch.length;
+    batch.total_amount = allSlipsInBatch.reduce((sum, s) => sum + Number(s.net_salary), 0);
     batch.status = 'processed';
     batch.processed_at = new Date();
     await batch.save();
@@ -289,6 +305,24 @@ export const previewPayroll = async (req: AuthRequest, res: Response): Promise<v
         });
 
         if (!employee) continue;
+
+        // Check if already processed (any status)
+        const existingSlip = await SalarySlip.findOne({
+            where: { employee_id: employeeId, month, year }
+        });
+
+        if (existingSlip) {
+            previews.push({
+                employee_id: employeeId,
+                employee_name: employee.name,
+                employee_code: employee.employee_id,
+                department: (employee as any).department?.name,
+                designation: (employee as any).designation?.name,
+                status: 'ALREADY_PROCESSED',
+                message: existingSlip.status === 'paid' ? 'Payroll already paid for this month' : 'Payroll already processed in a previous batch'
+            });
+            continue;
+        }
 
         // Get attendance
         const attendance = await AttendanceLog.findAll({

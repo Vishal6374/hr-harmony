@@ -10,12 +10,9 @@ import {
     LeaveLimit,
     PayrollBatch,
     SalarySlip,
-    Reimbursement,
     Complaint,
     Policy,
     Holiday,
-    AuditLog,
-    Resignation,
     TaskLog,
     Meeting,
     LeaveType,
@@ -23,13 +20,9 @@ import {
     SystemSettings,
     SalaryStructure,
     PayGroup,
-    TaxSlab,
-    EmployeeDocument,
-    InvestmentDeclaration,
-    LoanAdvance,
-    FFSettlement
+    TaxSlab
 } from '../models';
-import { subDays, startOfMonth } from 'date-fns';
+import { subDays } from 'date-fns';
 
 const IS_CLEAN_MODE = process.argv.includes('--clean');
 
@@ -326,7 +319,7 @@ export const runMegaSeeder = async () => {
     ]);
     const structures = await SalaryStructure.findAll();
 
-    await seedTable(PayGroup, 'PayGroup', structures.map((s, i) => ({
+    await seedTable(PayGroup, 'PayGroup', structures.map((s) => ({
         name: `Group ${s.name}`,
         salary_structure_id: s.id
     })));

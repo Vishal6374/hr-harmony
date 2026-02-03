@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DataTable, Column } from '@/components/ui/data-table';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { employeeService, payrollService } from '@/services/apiService';
 import { toast } from 'sonner';
-import { Calendar, Users, DollarSign, Play, CheckCircle2 } from 'lucide-react';
+import { Calendar, Users, DollarSign, Play, CheckCircle2, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import Loader from '@/components/ui/Loader';
 
@@ -35,6 +36,28 @@ export default function PayrollProcess() {
     });
 
     const employees = employeesData || [];
+
+    // Fetch existing slips for selected period to check who's already paid
+    const { data: existingSlips = [] } = useQuery({
+        queryKey: ['payroll-slips', selectedMonth, selectedYear],
+        queryFn: async () => {
+            const { data } = await payrollService.getSlips({ month: selectedMonth, year: selectedYear });
+            return data || [];
+        },
+    });
+
+    const processedEmployeeIds = new Set(
+        existingSlips.map((s: any) => s.employee_id)
+    );
+
+    const paidEmployeeIds = new Set(
+        existingSlips
+            .filter((s: any) => s.status === 'paid')
+            .map((s: any) => s.employee_id)
+    );
+
+    const selectedProcessedEmployees = Array.from(selectedEmployees).filter(id => processedEmployeeIds.has(id));
+    const hasProcessedSelected = selectedProcessedEmployees.length > 0;
 
     // Preview mutation
     const previewMutation = useMutation({
@@ -143,7 +166,14 @@ export default function PayrollProcess() {
             header: 'Employee',
             cell: (emp) => (
                 <div>
-                    <p className="font-medium">{emp.name}</p>
+                    <div className="flex items-center gap-2">
+                        <p className="font-medium">{emp.name}</p>
+                        {paidEmployeeIds.has(emp.id) ? (
+                            <StatusBadge status="paid" className="h-5 py-0 px-1.5 text-[10px]" />
+                        ) : processedEmployeeIds.has(emp.id) ? (
+                            <StatusBadge status="processed" className="h-5 py-0 px-1.5 text-[10px]" />
+                        ) : null}
+                    </div>
                     <p className="text-xs text-muted-foreground">{emp.employee_id}</p>
                 </div>
             ),
@@ -204,30 +234,36 @@ export default function PayrollProcess() {
             header: 'Attendance',
             cell: (item) => (
                 <div className="text-sm">
-                    <p>Present: {item.present_days}/{item.total_days}</p>
-                    <p className="text-destructive">Absent: {item.absent_days}</p>
+                    {item.status === 'ALREADY_PROCESSED' ? (
+                        <span className="text-muted-foreground">-</span>
+                    ) : (
+                        <>
+                            <p>Present: {item.present_days}/{item.total_days}</p>
+                            <p className="text-destructive">Absent: {item.absent_days}</p>
+                        </>
+                    )}
                 </div>
             ),
         },
         {
             key: 'basic',
             header: 'Basic',
-            cell: (item) => <span>₹{Number(item.basic_salary).toLocaleString('en-IN')}</span>,
+            cell: (item) => <span>{item.status === 'ALREADY_PROCESSED' ? '-' : `₹${Number(item.basic_salary).toLocaleString('en-IN')}`}</span>,
         },
         {
             key: 'bonus',
             header: 'Bonus',
-            cell: (item) => <span className="text-success">+₹{Number(bonuses[item.employee_id] || 0).toLocaleString('en-IN')}</span>,
+            cell: (item) => <span className="text-success">{item.status === 'ALREADY_PROCESSED' ? '-' : `+₹${Number(bonuses[item.employee_id] || 0).toLocaleString('en-IN')}`}</span>,
         },
         {
             key: 'pf',
             header: 'PF',
-            cell: (item) => <span className="text-destructive">-₹{Number(item.pf || 0).toLocaleString('en-IN')}</span>,
+            cell: (item) => <span className="text-destructive">{item.status === 'ALREADY_PROCESSED' ? '-' : `-₹${Number(item.pf || 0).toLocaleString('en-IN')}`}</span>,
         },
         {
             key: 'esi',
             header: 'ESI',
-            cell: (item) => <span className="text-destructive">-₹{Number(item.esi || 0).toLocaleString('en-IN')}</span>,
+            cell: (item) => <span className="text-destructive">{item.status === 'ALREADY_PROCESSED' ? '-' : `-₹${Number(item.esi || 0).toLocaleString('en-IN')}`}</span>,
         },
         // {
         //     key: 'tax',
@@ -237,17 +273,20 @@ export default function PayrollProcess() {
         {
             key: 'lop',
             header: 'LOP',
-            cell: (item) => <span className="text-destructive">-₹{Number(item.lop).toLocaleString('en-IN')}</span>,
+            cell: (item) => <span className="text-destructive">{item.status === 'ALREADY_PROCESSED' ? '-' : `-₹${Number(item.lop).toLocaleString('en-IN')}`}</span>,
         },
         {
             key: 'other_deductions',
             header: 'Other',
-            cell: (item) => <span className="text-destructive">-₹{Number(deductions[item.employee_id] || 0).toLocaleString('en-IN')}</span>,
+            cell: (item) => <span className="text-destructive">{item.status === 'ALREADY_PROCESSED' ? '-' : `-₹${Number(deductions[item.employee_id] || 0).toLocaleString('en-IN')}`}</span>,
         },
         {
             key: 'net',
             header: 'Net Salary',
             cell: (item) => {
+                if (item.status === 'ALREADY_PROCESSED') {
+                    return <span className="text-destructive font-medium">{item.message}</span>;
+                }
                 const bonus = bonuses[item.employee_id] || 0;
                 const deduction = deductions[item.employee_id] || 0;
                 const net = item.net_salary + bonus - deduction;
@@ -259,11 +298,6 @@ export default function PayrollProcess() {
     return (
 
         <div className="space-y-6 animate-fade-in">
-            <PageHeader
-                title="Process Payroll"
-                description="Select month, employees, and process payroll"
-            />
-
             {/* Month Selection */}
             <Card>
                 <CardHeader>
@@ -308,6 +342,29 @@ export default function PayrollProcess() {
                     </p>
                 </CardContent>
             </Card>
+
+            {/* Paid Employees Warning */}
+            {hasProcessedSelected && !showPreview && (
+                <Card className="border-destructive/50 bg-destructive/5">
+                    <CardContent className="pt-6">
+                        <div className="flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
+                            <div>
+                                <h3 className="font-semibold text-destructive">
+                                    Selection Error
+                                </h3>
+                                <p className="text-sm text-destructive/80 mt-1">
+                                    {selectedProcessedEmployees.length} selected employee(s) have already been processed for this month.
+                                    Once processed, an employee cannot be added to a new batch. Please unselect them to proceed.
+                                </p>
+                                <div className="mt-2 text-xs font-medium text-destructive/70">
+                                    Affected: {selectedProcessedEmployees.map(id => employees.find((e: any) => e.id === id)?.name).join(', ')}
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Employee Selection */}
             {!showPreview && (
@@ -366,6 +423,7 @@ export default function PayrollProcess() {
                                 <span className="text-lg font-semibold">Total Payroll Amount:</span>
                                 <span className="text-2xl font-bold text-primary">
                                     ₹{previewData.reduce((sum: number, item: any) => {
+                                        if (item.status === 'ALREADY_PROCESSED') return sum;
                                         const bonus = bonuses[item.employee_id] || 0;
                                         const deduction = deductions[item.employee_id] || 0;
                                         return sum + (item.net_salary + bonus - deduction);
@@ -405,8 +463,9 @@ export default function PayrollProcess() {
                 ) : (
                     <Button
                         onClick={handlePreview}
-                        disabled={selectedEmployees.size === 0 || previewMutation.isPending}
+                        disabled={selectedEmployees.size === 0 || previewMutation.isPending || hasProcessedSelected}
                         className="gap-2"
+                        title={hasProcessedSelected ? "Please unselect employees who are already processed" : ""}
                     >
                         {previewMutation.isPending ? (
                             <>

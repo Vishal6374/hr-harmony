@@ -4,12 +4,16 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { payrollService } from '@/services/apiService';
-import { AlertCircle, CheckCircle2, DollarSign, Users, Calendar, Check } from 'lucide-react';
+import { AlertCircle, CheckCircle2, DollarSign, Users, Calendar, Check, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { useState } from 'react';
+import BatchDetailsSheet from '@/components/payroll/BatchDetailsSheet';
 
 export default function PayrollDashboardSimple() {
     const queryClient = useQueryClient();
+    const [selectedBatch, setSelectedBatch] = useState<any | null>(null);
+    const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
     // Fetch recent payroll batches
     const { data: batches = [], isLoading } = useQuery({
@@ -32,7 +36,19 @@ export default function PayrollDashboardSimple() {
         },
     });
 
-    const recentBatches = batches.slice(0, 5);
+    const recentBatches = [...batches].sort((a, b) => {
+        // Prioritize 'processed' or 'draft' status
+        const isAPending = a.status === 'processed' || a.status === 'draft';
+        const isBPending = b.status === 'processed' || b.status === 'draft';
+
+        if (isAPending && !isBPending) return -1;
+        if (!isAPending && isBPending) return 1;
+
+        // Then sort by year/month descending
+        if (a.year !== b.year) return b.year - a.year;
+        return b.month - a.month;
+    });
+
     const pendingBatches = batches.filter((b: any) => b.status === 'processed' || b.status === 'draft');
     const currentMonth = new Date().getMonth() + 1;
     const currentYear = new Date().getFullYear();
@@ -80,19 +96,36 @@ export default function PayrollDashboardSimple() {
             key: 'actions',
             header: 'Actions',
             cell: (batch) => (
-                batch.status === 'processed' ? (
+                <div className="flex items-center gap-2">
                     <Button
                         size="sm"
-                        onClick={() => markPaidMutation.mutate(batch.id)}
-                        disabled={markPaidMutation.isPending}
-                        className="gap-1"
+                        variant="outline"
+                        onClick={() => {
+                            setSelectedBatch(batch);
+                            setIsDetailsOpen(true);
+                        }}
+                        className="gap-1 h-8"
                     >
-                        <Check className="w-3 h-3" />
-                        Mark Paid
+                        <Eye className="w-3 h-3" />
+                        Details
                     </Button>
-                ) : batch.status === 'paid' ? (
-                    <span className="text-xs text-success font-medium">✓ Paid</span>
-                ) : null
+                    {batch.status === 'processed' ? (
+                        <Button
+                            size="sm"
+                            onClick={() => markPaidMutation.mutate(batch.id)}
+                            disabled={markPaidMutation.isPending}
+                            className="gap-1 h-8"
+                        >
+                            <Check className="w-3 h-3" />
+                            Mark Paid
+                        </Button>
+                    ) : batch.status === 'paid' ? (
+                        <span className="text-xs text-success font-medium flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Paid
+                        </span>
+                    ) : null}
+                </div>
             ),
         },
     ];
@@ -193,7 +226,7 @@ export default function PayrollDashboardSimple() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Calendar className="w-5 h-5" />
-                        Last 5 Payroll Batches
+                        Payroll Batches History
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -215,6 +248,12 @@ export default function PayrollDashboardSimple() {
                     )}
                 </CardContent>
             </Card>
+
+            <BatchDetailsSheet
+                batch={selectedBatch}
+                open={isDetailsOpen}
+                onOpenChange={setIsDetailsOpen}
+            />
         </div>
     );
 }
