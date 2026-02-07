@@ -20,7 +20,17 @@ import { PageLoader } from '@/components/ui/page-loader';
 import { useSystemSettings } from '@/contexts/SystemSettingsContext';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Settings2 } from 'lucide-react';
+import { Settings2, AlertTriangle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Employees() {
   const [currentDetailsEmployee, setCurrentDetailsEmployee] = useState<Employee | null>(null);
@@ -33,6 +43,8 @@ export default function Employees() {
   const [isTerminateModalOpen, setIsTerminateModalOpen] = useState(false);
   const [employeeToTerminate, setEmployeeToTerminate] = useState<any>(null);
   const [isDetailsSheetOpen, setIsDetailsSheetOpen] = useState(false);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [pendingToggleValue, setPendingToggleValue] = useState<boolean | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -141,8 +153,11 @@ export default function Employees() {
                   <Label htmlFor="hr-manage" className="text-xs font-bold whitespace-nowrap cursor-pointer">HR Can Edit</Label>
                   <Switch
                     id="hr-manage"
-                    checked={settings?.hr_can_manage_employees}
-                    onCheckedChange={(checked) => updateSettings({ hr_can_manage_employees: checked })}
+                    checked={pendingToggleValue !== null ? pendingToggleValue : !!settings?.hr_can_manage_employees}
+                    onCheckedChange={(checked) => {
+                      setPendingToggleValue(checked);
+                      setIsConfirmDialogOpen(true);
+                    }}
                   />
                 </div>
               </div>
@@ -209,6 +224,45 @@ export default function Employees() {
             employee={currentDetailsEmployee}
           />
         )}
+
+        <AlertDialog
+          open={isConfirmDialogOpen}
+          onOpenChange={(open) => {
+            setIsConfirmDialogOpen(open);
+            if (!open) {
+              // We clear the pending value when the dialog closes
+              setPendingToggleValue(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-warning" />
+                </div>
+                <AlertDialogTitle>Confirmation Required</AlertDialogTitle>
+              </div>
+              <AlertDialogDescription className="text-sm">
+                Are you sure you want to {pendingToggleValue ? 'grant' : 'revoke'} employee management permissions for HR users? This includes adding, editing, and terminating employees.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => {
+                  if (pendingToggleValue !== null) {
+                    await updateSettings({ hr_can_manage_employees: pendingToggleValue });
+                  }
+                  setIsConfirmDialogOpen(false);
+                }}
+                className={pendingToggleValue ? "bg-primary" : "bg-destructive text-destructive-foreground hover:bg-destructive/90"}
+              >
+                Confirm Changes
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </MainLayout>
   );

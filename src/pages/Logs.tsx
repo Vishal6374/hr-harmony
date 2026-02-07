@@ -5,6 +5,7 @@ import { DataTable, Column } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { History, Search, Eye, User } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -20,7 +21,7 @@ export default function Logs() {
 
     if (!isHR && !isAdmin) return <Navigate to="/dashboard" replace />;
 
-    const { data: logs = [], isLoading } = useQuery({
+    const { data: logs = [], isLoading, refetch, isRefetching } = useQuery({
         queryKey: ['audit-logs'],
         queryFn: async () => {
             const { data } = await auditLogService.getAll();
@@ -99,7 +100,17 @@ export default function Logs() {
         <MainLayout>
             <div className="space-y-4 sm:space-y-6 animate-fade-in">
                 <PageHeader title="System Logs" description="Review system activities and audit trails">
-                    <History className="w-6 h-6 text-primary" />
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => refetch()}
+                            disabled={isRefetching}
+                        >
+                            <History className={cn("w-4 h-4 mr-2", isRefetching && "animate-spin")} />
+                            Refresh
+                        </Button>
+                    </div>
                 </PageHeader>
 
                 <div className="relative w-full sm:max-w-sm">

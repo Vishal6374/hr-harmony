@@ -108,132 +108,148 @@ export default function SystemCustomization() {
     return (
         <MainLayout>
             <div className="container mx-auto p-4 sm:p-6 space-y-6">
-                <PageHeader
-                    title="System Customization"
-                    description="Manage branding, login page, and system-wide settings."
-                />
-
-                <div className="flex justify-end">
-                    <Button onClick={handleSave} disabled={isSaving}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <PageHeader
+                        title="System Customization"
+                        description="Manage branding, login page, and system-wide settings."
+                    />
+                    <Button onClick={handleSave} disabled={isSaving} className="shadow-lg hover:shadow-xl transition-all">
                         {isSaving ? <Loader size="small" variant="white" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                         Save Changes
                     </Button>
                 </div>
 
                 <Tabs defaultValue="general" className="w-full">
-                    <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
-                        <TabsTrigger value="general">General</TabsTrigger>
-                        <TabsTrigger value="branding">Branding</TabsTrigger>
-                        <TabsTrigger value="login">Login Page</TabsTrigger>
-                        <TabsTrigger value="payslip">Payslip</TabsTrigger>
+                    <TabsList className="flex w-full overflow-x-auto no-scrollbar bg-muted/50 p-1 rounded-xl mb-6">
+                        <TabsTrigger value="general" className="flex-1 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all py-2.5">General</TabsTrigger>
+                        <TabsTrigger value="branding" className="flex-1 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all py-2.5">Branding</TabsTrigger>
+                        <TabsTrigger value="login" className="flex-1 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all py-2.5">Login Page</TabsTrigger>
+                        <TabsTrigger value="payslip" className="flex-1 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all py-2.5">Payslip</TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="general">
-                        <Card>
+                    <TabsContent value="general" className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <Card className="border-none shadow-sm bg-muted/20">
                             <CardHeader>
-                                <CardTitle>General Settings</CardTitle>
-                                <CardDescription>Basic information about the system.</CardDescription>
+                                <CardTitle className="text-lg">General Settings</CardTitle>
+                                <CardDescription>Basic identification for your HRMS instance.</CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="company_name">Company Name</Label>
-                                    <Input
-                                        id="company_name"
-                                        name="company_name"
-                                        value={formData.company_name || ""}
-                                        onChange={handleChange}
-                                        placeholder="e.g. Acme Corp"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="site_title">Site Title (Browser Tab)</Label>
-                                    <Input
-                                        id="site_title"
-                                        name="site_title"
-                                        value={formData.site_title || ""}
-                                        onChange={handleChange}
-                                        placeholder="e.g. Acme HRM"
-                                    />
+                            <CardContent className="p-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-background p-6 rounded-2xl border shadow-sm">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="company_name" className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Company Name</Label>
+                                        <Input
+                                            id="company_name"
+                                            name="company_name"
+                                            value={formData.company_name || ""}
+                                            onChange={handleChange}
+                                            placeholder="e.g. Acme Corp"
+                                            className="h-11 rounded-xl border-muted-foreground/20 focus-visible:ring-primary/20"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="site_title" className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Site Title (Browser Tab)</Label>
+                                        <Input
+                                            id="site_title"
+                                            name="site_title"
+                                            value={formData.site_title || ""}
+                                            onChange={handleChange}
+                                            placeholder="e.g. Acme HRM"
+                                            className="h-11 rounded-xl border-muted-foreground/20 focus-visible:ring-primary/20"
+                                        />
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
 
-                    <TabsContent value="branding">
-                        <Card>
+                    <TabsContent value="branding" className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <Card className="border-none shadow-sm bg-muted/20">
                             <CardHeader>
-                                <CardTitle>Branding</CardTitle>
-                                <CardDescription>Manage logos and icons.</CardDescription>
+                                <CardTitle className="text-lg">Branding Assets</CardTitle>
+                                <CardDescription>Configure the logos used throughout the application.</CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-6">
-                                <FileUpload label="Company Logo" name="company_logo_url" currentUrl={formData.company_logo_url} />
-                                <FileUpload label="Sidebar Logo" name="sidebar_logo_url" currentUrl={formData.sidebar_logo_url} />
-                                <FileUpload label="Favicon" name="favicon_url" currentUrl={formData.favicon_url} />
+                            <CardContent className="p-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-background p-6 rounded-2xl border shadow-sm">
+                                    <FileUpload label="Company Logo" name="company_logo_url" currentUrl={formData.company_logo_url} />
+                                    <FileUpload label="Sidebar Logo" name="sidebar_logo_url" currentUrl={formData.sidebar_logo_url} />
+                                    <FileUpload label="Favicon" name="favicon_url" currentUrl={formData.favicon_url} />
+                                </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
 
-                    <TabsContent value="login">
-                        <Card>
+                    <TabsContent value="login" className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <Card className="border-none shadow-sm bg-muted/20">
                             <CardHeader>
-                                <CardTitle>Login Page</CardTitle>
-                                <CardDescription>Customize the appearance of the login screen.</CardDescription>
+                                <CardTitle className="text-lg">Login Screen</CardTitle>
+                                <CardDescription>Customize the first experience for your employees.</CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="login_title">Welcome Title</Label>
-                                    <Input
-                                        id="login_title"
-                                        name="login_title"
-                                        value={formData.login_title || ""}
-                                        onChange={handleChange}
-                                        placeholder="Welcome Back"
-                                    />
+                            <CardContent className="p-6 space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-background p-6 rounded-2xl border shadow-sm">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="login_title" className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Welcome Title</Label>
+                                        <Input
+                                            id="login_title"
+                                            name="login_title"
+                                            value={formData.login_title || ""}
+                                            onChange={handleChange}
+                                            placeholder="Welcome Back"
+                                            className="h-11 rounded-xl border-muted-foreground/20"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="login_subtitle" className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Subtitle</Label>
+                                        <Input
+                                            id="login_subtitle"
+                                            name="login_subtitle"
+                                            value={formData.login_subtitle || ""}
+                                            onChange={handleChange}
+                                            placeholder="Enter your credentials..."
+                                            className="h-11 rounded-xl border-muted-foreground/20"
+                                        />
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="login_subtitle">Subtitle</Label>
-                                    <Input
-                                        id="login_subtitle"
-                                        name="login_subtitle"
-                                        value={formData.login_subtitle || ""}
-                                        onChange={handleChange}
-                                        placeholder="Enter your credentials..."
-                                    />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-background p-6 rounded-2xl border shadow-sm">
+                                    <FileUpload label="Login Logo" name="login_logo_url" currentUrl={formData.login_logo_url} />
+                                    <FileUpload label="Background Image" name="login_bg_url" currentUrl={formData.login_bg_url} />
                                 </div>
-                                <FileUpload label="Login Logo" name="login_logo_url" currentUrl={formData.login_logo_url} />
-                                <FileUpload label="Background Image" name="login_bg_url" currentUrl={formData.login_bg_url} />
                             </CardContent>
                         </Card>
                     </TabsContent>
 
-                    <TabsContent value="payslip">
-                        <Card>
+                    <TabsContent value="payslip" className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <Card className="border-none shadow-sm bg-muted/20">
                             <CardHeader>
-                                <CardTitle>Payslip Configuration</CardTitle>
-                                <CardDescription>Customize the content appearing on salary slips.</CardDescription>
+                                <CardTitle className="text-lg">Payslip Configuration</CardTitle>
+                                <CardDescription>Configure legal and branding information for salary slips.</CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="payslip_header_name">Company Name on Payslip</Label>
-                                    <Input
-                                        id="payslip_header_name"
-                                        name="payslip_header_name"
-                                        value={formData.payslip_header_name || ""}
-                                        onChange={handleChange}
-                                        placeholder="Catalyr Inc."
-                                    />
-                                </div>
-                                <FileUpload label="Payslip Logo" name="payslip_logo_url" currentUrl={formData.payslip_logo_url} />
-                                <div className="space-y-2">
-                                    <Label htmlFor="payslip_address">Company Address</Label>
-                                    <Textarea
-                                        id="payslip_address"
-                                        name="payslip_address"
-                                        value={formData.payslip_address || ""}
-                                        onChange={handleChange}
-                                        placeholder="123 Tech Park..."
-                                        rows={4}
-                                    />
+                            <CardContent className="p-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-background p-6 rounded-2xl border shadow-sm">
+                                    <div className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="payslip_header_name" className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Company Name on Payslip</Label>
+                                            <Input
+                                                id="payslip_header_name"
+                                                name="payslip_header_name"
+                                                value={formData.payslip_header_name || ""}
+                                                onChange={handleChange}
+                                                placeholder="Catalyr Inc."
+                                                className="h-11 rounded-xl border-muted-foreground/20"
+                                            />
+                                        </div>
+                                        <FileUpload label="Payslip Logo" name="payslip_logo_url" currentUrl={formData.payslip_logo_url} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="payslip_address" className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Company Address</Label>
+                                        <Textarea
+                                            id="payslip_address"
+                                            name="payslip_address"
+                                            value={formData.payslip_address || ""}
+                                            onChange={handleChange}
+                                            placeholder="123 Tech Park..."
+                                            className="rounded-xl border-muted-foreground/20 resize-none min-h-[165px]"
+                                        />
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>

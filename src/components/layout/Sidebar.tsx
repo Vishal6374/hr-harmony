@@ -110,7 +110,7 @@ export function Sidebar() {
           })}
         </ul>
       </nav>
-      <div className="border-t border-primary/20 p-3">
+      <div className="border-t border-primary-foreground/10 p-3">
         <div className={cn(
           "flex items-center gap-3 p-2 rounded-lg transition-all duration-300",
           isCollapsed && "justify-center"

@@ -136,10 +136,10 @@ export default function MyPayslips() {
     return (
 
         <div className="space-y-6 animate-fade-in">
-            <PageHeader
+            {/* <PageHeader
                 title="My Payslips"
                 description="View and download your salary slips"
-            />
+            /> */}
 
             {/* Summary Cards */}
             {latestSlip && (

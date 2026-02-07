@@ -128,7 +128,7 @@ export function EmployeeDetailsSheet({ employee, open, onOpenChange }: EmployeeD
                         </section>
                     </TabsContent>
 
-                    <TabsContent value="employment" className="space-y-6">
+                    <TabsContent value="employment" className="space-y-4 pt-4">
                         <section className="space-y-4">
                             <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                                 <Briefcase className="w-4 h-4" /> Position Details
@@ -266,8 +266,7 @@ export function EmployeeDetailsSheet({ employee, open, onOpenChange }: EmployeeD
                     </TabsContent>
                 </Tabs>
 
-                <Separator className="mt-8 mb-4 " />
-                <div className="flex items-center justify-between mt-auto">
+                <div className="flex items-center justify-between mt-8">
                     <p className="text-[10px] text-muted-foreground">Employee record last updated: {format(new Date(), 'MMM dd, hh:mm a')}</p>
                     <p className="text-[10px] text-primary font-bold uppercase">HR Verified Secure</p>
                 </div>

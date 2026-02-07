@@ -11,7 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { meetingService, employeeService } from '@/services/apiService';
 import { toast } from 'sonner';
-import { Calendar, Clock, Video, MapPin, Users, Plus, ExternalLink, CalendarDays, MoreVertical, Trash2 } from 'lucide-react';
+import { Calendar, Clock, Video, MapPin, Users, Plus, ExternalLink, CalendarDays, MoreVertical, Trash2, History as HistoryIcon } from 'lucide-react';
 import { format, isAfter, isBefore } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Loader from '@/components/ui/Loader';
@@ -227,10 +227,11 @@ export default function Meetings() {
                     )}
                 </PageHeader>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    <div className="lg:col-span-8 space-y-6">
-                        <div className="flex items-center gap-4 border-b pb-2">
-                            <h2 className="text-lg font-semibold flex items-center gap-2">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Upcoming Meetings Section */}
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-4 border-b pb-2 px-1">
+                            <h2 className="text-lg font-bold flex items-center gap-2">
                                 <CalendarDays className="w-5 h-5 text-primary" />
                                 Upcoming Meetings
                             </h2>
@@ -242,9 +243,9 @@ export default function Meetings() {
                         {isLoading ? (
                             <div className="flex items-center justify-center p-20"><Loader /></div>
                         ) : upcomingMeetings.length > 0 ? (
-                            <div className="grid grid-cols-1 gap-4">
+                            <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[600px] pr-2 no-scrollbar">
                                 {upcomingMeetings.map((meeting: any) => (
-                                    <Card key={meeting.id} className="overflow-hidden border-none shadow-md hover:shadow-lg transition-all group">
+                                    <Card key={meeting.id} className="overflow-hidden border shadow-sm hover:shadow-md transition-all group">
                                         <CardContent className="p-0">
                                             <div className="flex">
                                                 <div className={cn(
@@ -265,42 +266,38 @@ export default function Meetings() {
                                                                     {format(new Date(meeting.date), 'MMM dd, yyyy')}
                                                                 </span>
                                                             </div>
-                                                            <h3 className="text-lg font-bold group-hover:text-primary transition-colors">{meeting.title}</h3>
+                                                            <h3 className="text-base font-bold group-hover:text-primary transition-colors">{meeting.title}</h3>
                                                         </div>
                                                         {(isHR || meeting.created_by === user?.id) && (
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
-                                                                className="text-muted-foreground hover:text-destructive"
+                                                                className="text-muted-foreground hover:text-destructive h-8 w-8"
                                                                 onClick={() => deleteMeetingMutation.mutate(meeting.id)}
                                                             >
                                                                 <Trash2 className="w-4 h-4" />
                                                             </Button>
                                                         )}
                                                     </div>
-                                                    <p className="text-sm text-muted-foreground line-clamp-2">{meeting.description}</p>
-                                                    <div className="flex flex-wrap items-center gap-6 pt-2">
-                                                        <div className="flex items-center gap-1.5 text-sm font-medium">
-                                                            <Clock className="w-4 h-4 text-primary" />
-                                                            {formatTime12h(meeting.start_time)} - {formatTime12h(meeting.end_time)}
+                                                    <p className="text-xs text-muted-foreground line-clamp-2">{meeting.description}</p>
+                                                    <div className="flex flex-wrap items-center gap-4 pt-1">
+                                                        <div className="flex items-center gap-1.5 text-xs font-medium">
+                                                            <Clock className="w-3.5 h-3.5 text-primary" />
+                                                            {formatTime12h(meeting.start_time)}
                                                         </div>
-                                                        <div className="flex items-center gap-1.5 text-sm font-medium">
+                                                        <div className="flex items-center gap-1.5 text-xs font-medium">
                                                             {meeting.type === 'virtual' ? (
-                                                                <><Video className="w-4 h-4 text-blue-500" /> Virtual Meet</>
+                                                                <><Video className="w-3.5 h-3.5 text-blue-500" /> Virtual</>
                                                             ) : (
-                                                                <><MapPin className="w-4 h-4 text-orange-500" /> {meeting.location}</>
+                                                                <><MapPin className="w-3.5 h-3.5 text-orange-500" /> {meeting.location}</>
                                                             )}
-                                                        </div>
-                                                        <div className="flex items-center gap-1.5 text-sm font-medium">
-                                                            <Users className="w-4 h-4 text-muted-foreground" />
-                                                            {JSON.parse(meeting.attendees || '[]').length} Attendees
                                                         </div>
                                                     </div>
                                                     {meeting.type === 'virtual' && meeting.meeting_url && (
-                                                        <div className="pt-2">
-                                                            <Button asChild className="w-full sm:w-auto" size="sm">
+                                                        <div className="pt-1">
+                                                            <Button asChild className="w-full h-8 text-[11px]" size="sm">
                                                                 <a href={meeting.meeting_url} target="_blank" rel="noopener noreferrer">
-                                                                    <ExternalLink className="w-4 h-4 mr-2" /> Join Meeting
+                                                                    <ExternalLink className="w-3.5 h-3.5 mr-2" /> Join Now
                                                                 </a>
                                                             </Button>
                                                         </div>
@@ -315,20 +312,25 @@ export default function Meetings() {
                             <div className="flex flex-col items-center justify-center p-12 bg-muted/20 border-2 border-dashed rounded-2xl text-center">
                                 <Video className="w-10 h-10 text-muted-foreground mb-4 opacity-20" />
                                 <h3 className="text-lg font-semibold">No upcoming meetings</h3>
-                                <p className="text-sm text-muted-foreground max-w-[250px]">Your schedule looks clear for now. New meetings will appear here.</p>
+                                <p className="text-sm text-muted-foreground max-w-[250px]">Your schedule looks clear for now.</p>
                             </div>
                         )}
                     </div>
 
-                    <div className="lg:col-span-4 space-y-6">
-                        <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
-                            <div className="p-4 border-b bg-muted/30">
-                                <h3 className="font-bold flex items-center gap-2">
-                                    <Clock className="w-4 h-4 text-primary" />
-                                    Past History
-                                </h3>
-                            </div>
-                            <div className="p-4 space-y-4 max-h-[500px] overflow-y-auto no-scrollbar">
+                    {/* Past History Section */}
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-4 border-b pb-2 px-1">
+                            <h2 className="text-lg font-bold flex items-center gap-2">
+                                <HistoryIcon className="w-5 h-5 text-muted-foreground" />
+                                Past History
+                            </h2>
+                            <span className="px-2 py-0.5 rounded text-xs font-bold bg-muted text-muted-foreground">
+                                {pastMeetings.length}
+                            </span>
+                        </div>
+
+                        <div className="bg-card rounded-2xl border shadow-sm h-full max-h-[600px] overflow-hidden flex flex-col">
+                            <div className="p-4 space-y-4 overflow-y-auto no-scrollbar flex-1">
                                 {pastMeetings.length > 0 ? (
                                     pastMeetings.map((meeting: any) => (
                                         <div key={meeting.id} className="flex gap-3 p-3 rounded-xl border border-transparent hover:border-border hover:bg-muted/30 transition-all opacity-70">
@@ -336,13 +338,21 @@ export default function Meetings() {
                                                 <Calendar className="w-5 h-5 text-muted-foreground" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-bold truncate">{meeting.title}</p>
-                                                <p className="text-xs text-muted-foreground">{format(new Date(meeting.date), 'MMM dd')} • {formatTime12h(meeting.start_time)}</p>
+                                                <div className="flex items-center justify-between mb-0.5">
+                                                    <p className="text-sm font-bold truncate">{meeting.title}</p>
+                                                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">{format(new Date(meeting.date), 'MMM dd')}</span>
+                                                </div>
+                                                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                                    <Clock className="w-3 h-3" /> {formatTime12h(meeting.start_time)}
+                                                </p>
                                             </div>
                                         </div>
                                     ))
                                 ) : (
-                                    <p className="text-center text-xs text-muted-foreground p-4">No past meetings recorded.</p>
+                                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                                        <HistoryIcon className="w-10 h-10 text-muted-foreground mb-4 opacity-10" />
+                                        <p className="text-sm text-muted-foreground">No past meetings recorded.</p>
+                                    </div>
                                 )}
                             </div>
                         </div>

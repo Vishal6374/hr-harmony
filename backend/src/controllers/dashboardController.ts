@@ -35,9 +35,19 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
             ] = await Promise.all([
                 User.count({ where: { status: 'active' } }),
                 User.count({ where: { created_at: { [Op.gte]: startOfMonthDate } } }),
-                Resignation.count({ where: { created_at: { [Op.gte]: startOfMonthDate } } }),
+                Resignation.count({
+                    where: {
+                        status: 'approved',
+                        approved_last_working_day: { [Op.gte]: startOfMonthDate }
+                    }
+                }),
                 Department.count(),
-                AttendanceLog.count({ where: { date: today, status: 'present' } }),
+                AttendanceLog.count({
+                    where: {
+                        date: { [Op.eq]: today },
+                        status: { [Op.in]: ['present', 'half_day'] }
+                    }
+                }),
                 PayrollBatch.findAll({
                     where: { month: today.getMonth() + 1, year: today.getFullYear() },
                     attributes: ['id']
@@ -76,6 +86,21 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
                 attritionStats[deptName] = (attritionStats[deptName] || 0) + 1;
             });
 
+            // Fill gaps in workforce growth (last 12 months)
+            const filledWorkforceTrend = [];
+            for (let i = 11; i >= 0; i--) {
+                const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                const monthStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+                const match = (workforceTrend as any[]).find(row => {
+                    const rowMonth = typeof row.month === 'string' ? row.month : row.get('month');
+                    return rowMonth === monthStr;
+                });
+                filledWorkforceTrend.push({
+                    month: monthStr,
+                    count: match ? parseInt(match.dataValues?.count || match.get('count') || 0) : 0
+                });
+            }
+
             res.json({
                 role: 'admin',
                 kpis: {
@@ -87,7 +112,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
                     payrollCostMTD: payrollMTD || 0
                 },
                 charts: {
-                    workforceGrowth: workforceTrend,
+                    workforceGrowth: filledWorkforceTrend,
                     attritionByDept: Object.keys(attritionStats).map(name => ({ name, count: attritionStats[name] })),
                     payrollDistribution: [] // TODO: Group payroll by dept
                 },
@@ -106,12 +131,30 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
                 leaveTypeDist
             ] = await Promise.all([
                 User.count({ where: { status: 'active', role: { [Op.ne]: 'admin' } } }),
-                AttendanceLog.count({ where: { date: today, status: 'present' } }),
+                AttendanceLog.count({
+                    where: {
+                        date: { [Op.eq]: today },
+                        status: { [Op.in]: ['present', 'half_day'] }
+                    }
+                }),
                 LeaveRequest.count({ where: { status: 'pending' } }),
                 PayrollBatch.findOne({ where: { month: today.getMonth() + 1, year: today.getFullYear() } }),
-                Resignation.count({ where: { status: 'pending' } }),
+                Resignation.count({
+                    where: {
+                        [Op.or]: [
+                            { status: 'pending' },
+                            {
+                                status: 'approved',
+                                approved_last_working_day: { [Op.gt]: today }
+                            }
+                        ]
+                    }
+                }),
                 AttendanceLog.findAll({
-                    where: { date: { [Op.gte]: new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000) } },
+                    where: {
+                        date: { [Op.gte]: new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000) },
+                        status: { [Op.in]: ['present', 'half_day'] }
+                    },
                     attributes: ['date', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
                     group: ['date'],
                     order: [['date', 'ASC']]
@@ -121,6 +164,24 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
                     group: ['leave_type']
                 })
             ]);
+
+            // Fill gaps in attendance trend (last 7 days)
+            const filledAttendanceTrend = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(today);
+                d.setDate(d.getDate() - i);
+                const dateStr = d.toISOString().split('T')[0];
+                // attendanceTrend is an array of Sequelize models with dataValues or raw results
+                const match = (attendanceTrend as any[]).find(row => {
+                    const rowDate = typeof row.date === 'string' ? row.date : row.get('date');
+                    return rowDate === dateStr;
+                });
+
+                filledAttendanceTrend.push({
+                    date: dateStr,
+                    count: match ? parseInt(match.dataValues?.count || match.get('count') || 0) : 0
+                });
+            }
 
             res.json({
                 role: 'hr',
@@ -132,7 +193,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
                     upcomingExits
                 },
                 charts: {
-                    attendanceTrend,
+                    attendanceTrend: filledAttendanceTrend,
                     leaveTypeDist
                 }
             });
@@ -161,10 +222,12 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
             const totalTasks = tasksMTD.length;
             const performanceScore = totalTasks > 0 ? ((completedTasks / totalTasks) * 10).toFixed(1) : 'N/A';
 
+            const todayStatus = (todayLog?.status === 'present' || todayLog?.status === 'half_day') ? 'Checked In' : (todayLog?.status || 'Not Checked In');
+
             res.json({
                 role: 'employee',
                 kpis: {
-                    todayStatus: todayLog?.status || 'Not Checked In',
+                    todayStatus: todayStatus,
                     workedHours: todayLog?.work_hours || '00:00',
                     leaveBalance: leaveBalances,
                     lastSalary: lastSalary?.net_salary || 0,

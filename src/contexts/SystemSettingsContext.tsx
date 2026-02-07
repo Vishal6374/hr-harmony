@@ -25,9 +25,12 @@ export const SystemSettingsProvider: React.FC<{ children: React.ReactNode }> = (
     const updateMutation = useMutation({
         mutationFn: systemSettingsService.updateSystemSettings,
         onSuccess: (data) => {
-            queryClient.setQueryData(['systemSettings'], data.data);
-            // Optionally invalidate to refetch if needed
-            // queryClient.invalidateQueries({ queryKey: ['systemSettings'] });
+            // The backend returns { message, settings: { ... } } on update
+            // and just { ... } on fetch. We handle both for consistency.
+            const updatedSettings = (data.data as any).settings || data.data;
+            queryClient.setQueryData(['systemSettings'], updatedSettings);
+            // Invalidate to ensure other components get fresh data
+            queryClient.invalidateQueries({ queryKey: ['systemSettings'] });
         },
     });
 

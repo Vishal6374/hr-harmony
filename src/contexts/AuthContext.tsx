@@ -75,6 +75,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     toast.success('Logged out successfully');
   }, []);
 
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token && !user) {
+        try {
+          const { data } = await authService.getProfile();
+          const mappedUser = {
+            id: data.user.id,
+            employeeId: data.user.employee_id,
+            name: data.user.name,
+            email: data.user.email,
+            role: data.user.role,
+            avatar: data.user.avatar_url,
+            departmentId: data.user.department_id,
+            designationId: data.user.designation_id,
+          };
+          setUser(mappedUser);
+        } catch (error) {
+          logout();
+        }
+      }
+    };
+    checkAuth();
+  }, [logout, user]);
+
   const value: AuthContextType = {
     user,
     isAuthenticated: !!user,

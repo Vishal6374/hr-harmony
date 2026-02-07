@@ -24,8 +24,8 @@ import { RegularizationModal } from '@/components/attendance/RegularizationModal
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function Attendance() {
-  const { isHR, user } = useAuth();
-  const [activeTab, setActiveTab] = useState(isHR ? 'team' : 'personal');
+  const { isHR, isAdmin, user } = useAuth();
+  const [activeTab, setActiveTab] = useState(isAdmin || isHR ? 'team' : 'personal');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -176,7 +176,8 @@ export default function Attendance() {
     let a = 0;
     daysInMonth.forEach(date => {
       if (isAfter(date, startOfDay(today))) return;
-      const userLog = logs.find((log: any) => log.employee_id === user?.id && isSameDay(new Date(log.date), date));
+      const dateStr = format(date, 'yyyy-MM-dd');
+      const userLog = logs.find((log: any) => log.employee_id === user?.id && log.date === dateStr);
       const holiday = holidays.find((h: any) => isSameDay(new Date(h.date), date));
       const isWeekendDay = isWeekend(date);
 
@@ -196,7 +197,8 @@ export default function Attendance() {
   );
 
   const getAttendanceForDate = (date: Date) => {
-    return logs.filter((log: any) => isSameDay(new Date(log.date), date));
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return logs.filter((log: any) => log.date === dateStr);
   };
 
   const getStatusColor = (status: string | undefined) => {
@@ -250,11 +252,11 @@ export default function Attendance() {
   return (
     <MainLayout>
       <div className="space-y-4 sm:space-y-6 animate-fade-in">
-        {isHR && (
+        {(isHR || isAdmin) && (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
             <TabsList>
               <TabsTrigger value="team">Team Attendance</TabsTrigger>
-              <TabsTrigger value="personal">My Attendance</TabsTrigger>
+              {!isAdmin && <TabsTrigger value="personal">My Attendance</TabsTrigger>}
             </TabsList>
           </Tabs>
         )}
@@ -432,7 +434,7 @@ export default function Attendance() {
                 </CardContent>
               </Card>
               <Card className="hover:shadow-sm transition-shadow"><CardContent className="p-3 flex flex-col items-center justify-center min-h-[85px] text-center"><div className="flex flex-col items-center gap-1"><div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center shrink-0"><CalendarCheck className="w-5 h-5 text-green-600" /></div><div><p className="text-xl sm:text-2xl font-bold text-green-600 leading-none">{myPresentDays}</p><p className="text-[9px] uppercase font-bold tracking-tight text-muted-foreground mt-1">Present Days</p></div></div></CardContent></Card>
-              <Card className="hover:shadow-sm transition-shadow"><CardContent className="p-3 flex flex-col items-center justify-center min-h-[85px] text-center"><div className="flex flex-col items-center gap-1"><div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center shrink-0"><X className="w-5 h-5 text-destructive" /></div><div><p className="text-xl sm:text-2xl font-bold text-destructive leading-none">{myAbsentDays}</p><p className="text-[9px] uppercase font-bold tracking-tight text-muted-foreground mt-1">Absent Days</p></div></div></CardContent></Card>
+              <Card className="hover:shadow-sm transition-shadow"><CardContent className="p-3 flex flex-col items-center justify-center min-h-[85px] text-center"><div className="flex flex-col items-center gap-1"><div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center shrink-0"><XIcon className="w-5 h-5 text-destructive" /></div><div><p className="text-xl sm:text-2xl font-bold text-destructive leading-none">{myAbsentDays}</p><p className="text-[9px] uppercase font-bold tracking-tight text-muted-foreground mt-1">Absent Days</p></div></div></CardContent></Card>
               <Card className="hover:shadow-sm transition-shadow"><CardContent className="p-3 flex flex-col items-center justify-center min-h-[85px] text-center"><div className="flex flex-col items-center gap-1"><div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><TrendingUp className="w-5 h-5 text-primary" /></div><div><p className="text-xl sm:text-2xl font-bold leading-none">{Math.round((myPresentDays / (myPresentDays + myAbsentDays || 1)) * 100)}%</p><p className="text-[9px] uppercase font-bold tracking-tight text-muted-foreground mt-1">Attendance Rate</p></div></div></CardContent></Card>
             </>
           )}
@@ -666,12 +668,31 @@ export default function Attendance() {
 
                     {/* HR View - Present Count */}
                     {activeTab === 'team' && (
-                      <div className="flex-1 flex items-center justify-center">
-                        {holiday && (
-                          <span className="text-[10px] font-semibold text-pink-600">{holiday.name}</span>
+                      <div className="flex-1 flex flex-col items-center justify-center gap-1">
+                        {holiday ? (
+                          <span className="text-[10px] font-semibold text-pink-600 truncate max-w-full px-1">{holiday.name}</span>
+                        ) : (
+                          <div className="flex items-center gap-0.5 text-[11px]">
+                            <span className="text-green-600 font-bold" title="Present">{dayLogs.filter((l: any) => l.status === 'present' || l.status === 'half_day').length}</span>
+                            <span className="text-muted-foreground/30 font-light">:</span>
+                            <span className="text-blue-600 font-bold" title="Leave">{dayLogs.filter((l: any) => l.status === 'on_leave').length}</span>
+                            <span className="text-muted-foreground/30 font-light">:</span>
+                            <span className="text-red-600 font-bold" title="Absent">
+                              {(() => {
+                                const p = dayLogs.filter((l: any) => l.status === 'present' || l.status === 'half_day').length;
+                                const l = dayLogs.filter((l: any) => l.status === 'on_leave').length;
+                                const loggedAbsent = dayLogs.filter((l: any) => l.status === 'absent').length;
+                                // If it's a workday in the past or today, calculate total absent
+                                if (!isWeekendDay && !holiday && (isPastDate || isTodayDate)) {
+                                  return Math.max(loggedAbsent, (employees?.length || 0) - p - l);
+                                }
+                                return loggedAbsent;
+                              })()}
+                            </span>
+                          </div>
                         )}
-                        {!holiday && presentCount > 0 && (
-                          <span className="text-sm font-semibold text-green-600">{presentCount}</span>
+                        {!holiday && isWeekendDay && (
+                          <span className="text-[9px] font-medium text-slate-400">Weekend</span>
                         )}
                       </div>
                     )}

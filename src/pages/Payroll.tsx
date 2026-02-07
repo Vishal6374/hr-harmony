@@ -93,8 +93,18 @@ export default function Payroll() {
       cell: (batch) => <span className="font-medium">{format(new Date(batch.year, batch.month - 1), 'MMMM yyyy')}</span>,
     },
     { key: 'total_employees', header: 'Employees', cell: (batch) => <span>{batch.total_employees}</span> },
-    { key: 'total_amount', header: 'Total Amount', cell: (batch) => <span className="font-semibold">₹{Number(batch.total_amount).toLocaleString()}</span> },
-    { key: 'status', header: 'Status', cell: (batch) => <StatusBadge status={batch.status} /> },
+    { key: 'total_amount', header: 'Total Amount', cell: (batch) => <span className="font-semibold">₹{Math.round(Number(batch.total_amount)).toLocaleString()}</span> },
+    {
+      key: 'status',
+      header: 'Status',
+      cell: (batch) => (
+        <div className="flex items-center gap-1.5">
+          <StatusBadge status={batch.status} />
+          {batch.status === 'paid' && <span className="text-success text-[10px]" title="Paid">✔️</span>}
+          {batch.status === 'processed' && <span className="text-warning text-[10px]" title="Processed">⌛</span>}
+        </div>
+      )
+    },
     {
       key: 'actions',
       header: '',
@@ -166,9 +176,19 @@ export default function Payroll() {
       header: 'LOP',
       cell: (slip: any) => <span className="text-red-600">₹{Number(slip.deductions?.loss_of_pay || 0).toLocaleString()}</span>
     },
-    { key: 'gross_salary', header: 'Gross', cell: (slip) => <span>₹{Number(slip.gross_salary).toLocaleString()}</span> },
-    { key: 'net_salary', header: 'Net Pay', cell: (slip) => <span className="font-semibold text-success">₹{Number(slip.net_salary).toLocaleString()}</span> },
-    { key: 'status', header: 'Status', cell: (slip) => <StatusBadge status={slip.status} /> },
+    { key: 'gross_salary', header: 'Gross', cell: (slip) => <span>₹{Math.round(Number(slip.gross_salary)).toLocaleString()}</span> },
+    { key: 'net_salary', header: 'Net Pay', cell: (slip) => <span className="font-semibold text-success">₹{Math.round(Number(slip.net_salary)).toLocaleString()}</span> },
+    {
+      key: 'status',
+      header: 'Status',
+      cell: (slip) => (
+        <div className="flex items-center gap-1.5">
+          <StatusBadge status={slip.status} />
+          {slip.status === 'paid' && <span className="text-success text-[10px]" title="Paid">✔️</span>}
+          {slip.status === 'processed' && <span className="text-warning text-[10px]" title="Processed">⌛</span>}
+        </div>
+      )
+    },
     {
       key: 'actions',
       header: '',
@@ -184,18 +204,28 @@ export default function Payroll() {
 
   const mySlipColumns: Column<SalarySlip>[] = [
     { key: 'period', header: 'Period', cell: (slip) => <span className="font-medium">{format(new Date(slip.year, slip.month - 1), 'MMMM yyyy')}</span> },
-    { key: 'gross_salary', header: 'Gross Salary', cell: (slip) => <span>₹{Number(slip.gross_salary).toLocaleString()}</span> },
+    { key: 'gross_salary', header: 'Gross Salary', cell: (slip) => <span>₹{Math.round(Number(slip.gross_salary)).toLocaleString()}</span> },
     {
       key: 'deductions',
       header: 'Deductions',
       cell: (slip) => {
         const d = (slip as any).deductions || {};
-        const total = Number(d.pf || 0) + Number(d.tax || 0) + Number(d.esi || 0) + Number(d.loss_of_pay || 0) + Number(d.other || 0);
+        const total = Math.round(Number(d.pf || 0) + Number(d.tax || 0) + Number(d.esi || 0) + Number(d.loss_of_pay || 0) + Number(d.other || 0));
         return <span className="text-destructive">-₹{total.toLocaleString()}</span>;
       }
     },
-    { key: 'net_salary', header: 'Net Pay', cell: (slip) => <span className="font-bold text-lg">₹{Number(slip.net_salary).toLocaleString()}</span> },
-    { key: 'status', header: 'Status', cell: (slip) => <StatusBadge status={slip.status} /> },
+    { key: 'net_salary', header: 'Net Pay', cell: (slip) => <span className="font-bold text-lg">₹{Math.round(Number(slip.net_salary)).toLocaleString()}</span> },
+    {
+      key: 'status',
+      header: 'Status',
+      cell: (slip) => (
+        <div className="flex items-center gap-1.5">
+          <StatusBadge status={slip.status} />
+          {slip.status === 'paid' && <span className="text-success text-[10px]" title="Paid">✔️</span>}
+          {slip.status === 'processed' && <span className="text-warning text-[10px]" title="Processed">⌛</span>}
+        </div>
+      )
+    },
     {
       key: 'actions',
       header: '',
@@ -266,7 +296,7 @@ export default function Payroll() {
           </Tabs>
         ) : (
           <Card className="overflow-hidden">
-            <CardHeader><CardTitle className="text-base">My Salary Slips</CardTitle></CardHeader>
+
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <DataTable columns={mySlipColumns} data={mySalarySlips} keyExtractor={(s) => s.id} emptyMessage="No salary slips" />

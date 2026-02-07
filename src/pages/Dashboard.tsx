@@ -101,21 +101,33 @@ export default function Dashboard() {
           {isHR && (
             <>
               <MetricCard title="Total Employees" value={kpis.totalEmployees} icon={Users} color="text-blue-600" bgColor="bg-blue-50" />
-              <MetricCard title="Present Today" value={kpis.presentToday} icon={UserCheck} color="text-emerald-600" bgColor="bg-emerald-50" />
+              <MetricCard
+                title="Present Today"
+                value={kpis.presentToday}
+                icon={UserCheck}
+                color="text-emerald-600"
+                bgColor="bg-emerald-50"
+              />
               <MetricCard title="Pending Leaves" value={kpis.pendingLeaves} icon={CalendarCheck} color="text-amber-600" bgColor="bg-amber-50" />
-              <MetricCard title="Payroll Status" value={kpis.payrollStatus} icon={Wallet} color="text-sky-600" bgColor="bg-sky-50" />
+              <MetricCard title="Payroll Status" value={kpis.payrollStatus === 'Paid' ? 'Paid' : 'Pending'} icon={Wallet} color="text-sky-600" bgColor="bg-sky-50" isStatus />
               <MetricCard title="Upcoming Exits" value={kpis.upcomingExits} icon={MessageSquareWarning} color="text-rose-600" bgColor="bg-rose-50" />
             </>
           )}
 
           {isEmployee && (
             <>
-              <MetricCard title="Today's Status" value={kpis.todayStatus} icon={Clock} color="text-emerald-600" bgColor="bg-emerald-50" />
+              <MetricCard
+                title="Today's Status"
+                value={kpis.todayStatus === 'Checked In' ? 'Done' : 'Pending'}
+                icon={Clock}
+                color="text-emerald-600"
+                bgColor="bg-emerald-50"
+                isStatus
+              />
               <MetricCard title="Worked Hours" value={kpis.workedHours} icon={Clock} color="text-blue-600" bgColor="bg-blue-50" />
               <MetricCard title="Casual Leave" value={kpis.leaveBalance?.casual_leave || 0} icon={CalendarCheck} color="text-sky-600" bgColor="bg-sky-50" />
               <MetricCard title="Sick Leave" value={kpis.leaveBalance?.sick_leave || 0} icon={CalendarCheck} color="text-rose-600" bgColor="bg-rose-50" />
               <MetricCard title="Last Salary" value={`₹${kpis.lastSalary?.toLocaleString()}`} icon={Wallet} color="text-emerald-600" bgColor="bg-emerald-50" />
-              <MetricCard title="Performance" value={`${kpis.performanceScore}/10`} icon={TrendingUp} color="text-blue-600" bgColor="bg-blue-50" />
             </>
           )}
         </div>
@@ -238,9 +250,14 @@ export default function Dashboard() {
                             dataKey="count"
                             nameKey="leave_type"
                           >
-                            {charts.leaveTypeDist.map((_: any, index: number) => (
-                              <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#ef4444'][index % 4]} />
-                            ))}
+                            {charts.leaveTypeDist.map((entry: any, index: number) => {
+                              const name = entry.leave_type.toLowerCase();
+                              let color = '#94a3b8'; // Default slate
+                              if (name.includes('casual')) color = '#10b981'; // Green for Casual
+                              if (name.includes('cl') || name.includes('privilege')) color = '#3b82f6'; // Blue for CL/Privilege
+                              if (name.includes('sick')) color = '#ef4444'; // Red for Sick
+                              return <Cell key={`cell-${index}`} fill={color} />;
+                            })}
                           </Pie>
                           <Tooltip />
                         </PieChart>
@@ -248,6 +265,11 @@ export default function Dashboard() {
                     ) : (
                       <EmptyState message="No leave requests yet" />
                     )}
+                  </div>
+                  <div className="flex justify-center gap-4 mt-2">
+                    <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-blue-500" /><span className="text-[10px] font-bold uppercase text-muted-foreground">CL</span></div>
+                    <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-emerald-500" /><span className="text-[10px] font-bold uppercase text-muted-foreground">Casual</span></div>
+                    <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-red-500" /><span className="text-[10px] font-bold uppercase text-muted-foreground">Sick</span></div>
                   </div>
                 </CardContent>
               </Card>
@@ -367,7 +389,7 @@ export default function Dashboard() {
               </Card>
 
               <Card className="lg:col-span-1 shadow-sm border">
-                <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2 font-bold text-blue-600"><Video className="w-4 h-4" />Meetings</CardTitle></CardHeader>
+                <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2 font-bold"><Video className="w-4 h-4" />Meetings</CardTitle></CardHeader>
                 <CardContent>
                   <div className="space-y-3">
                     {upcomingMeetings.slice(0, 3).map((m: any) => (
@@ -401,7 +423,7 @@ export default function Dashboard() {
   );
 }
 
-function MetricCard({ title, value, icon: Icon, color, bgColor }: any) {
+function MetricCard({ title, value, icon: Icon, color, bgColor, isStatus }: any) {
   return (
     <Card className="border shadow-none bg-muted/20">
       <CardContent className="p-3 flex flex-col justify-center min-h-[70px]">
@@ -410,8 +432,11 @@ function MetricCard({ title, value, icon: Icon, color, bgColor }: any) {
             <Icon className={cn("w-4 h-4", color)} />
           </div>
           <div className="min-w-0">
-            <p className="text-xl sm:text-2xl font-bold leading-none truncate">{value}</p>
-            <p className="text-[9px] uppercase font-bold tracking-tight text-muted-foreground mt-0.5 truncate">{title}</p>
+            <p className={cn(
+              "font-bold leading-none truncate",
+              isStatus ? "text-[11px] sm:text-[13px] font-bold uppercase tracking-wide" : "text-xl sm:text-2xl font-normal"
+            )}>{value}</p>
+            <p className="text-[9px] uppercase font-medium tracking-tight text-muted-foreground mt-0.5 truncate">{title}</p>
           </div>
         </div>
       </CardContent>

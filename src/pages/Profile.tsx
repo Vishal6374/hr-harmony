@@ -38,8 +38,15 @@ import {
   CheckCircle2,
   X,
   Info,
-  ExternalLink
+  ExternalLink,
+  CameraOff
 } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { format } from 'date-fns';
 import { PageLoader } from '@/components/ui/page-loader';
 import Loader from '@/components/ui/Loader';
@@ -92,6 +99,7 @@ export default function Profile() {
   const joiningDate = employee?.date_of_joining ? new Date(employee.date_of_joining) : new Date();
   const hoursSinceJoining = (new Date().getTime() - joiningDate.getTime()) / (1000 * 60 * 60);
   const isAdminOrHR = user?.role === 'admin' || user?.role === 'hr';
+  const isAdmin=user?.role === 'admin';
   const isTimeLocked = (user?.role === 'employee') && (hoursSinceJoining > 48);
   const isLocked = !isAdminOrHR && (employee?.onboarding_status === 'locked' || isTimeLocked);
 
@@ -235,9 +243,6 @@ export default function Profile() {
                   <AvatarImage src={employee.avatar_url} alt={employee.name} />
                   <AvatarFallback className="text-2xl">{employee.name?.charAt(0)}</AvatarFallback>
                 </Avatar>
-                <button className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md hover:bg-primary/90 transition-all hover:scale-110 active:scale-95">
-                  <Pencil className="w-4 h-4" />
-                </button>
               </div>
               <div className="flex-1">
                 <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-3 sm:gap-0 w-full sm:w-auto">
@@ -288,10 +293,23 @@ export default function Profile() {
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base">Personal Information</CardTitle>
                 {!isEditing ? (
-                  <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} disabled={isLocked}>
-                    {isLocked && <Clock className="w-4 h-4 mr-2" />}
-                    {isLocked ? 'Profile Locked' : 'Edit'}
-                  </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="inline-block">
+                          <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} disabled={isLocked}>
+                            {isLocked && <Clock className="w-4 h-4 mr-2" />}
+                            {isLocked ? 'Profile Locked' : 'Edit'}
+                          </Button>
+                        </div>
+                      </TooltipTrigger>
+                      {isLocked && (
+                        <TooltipContent>
+                          <p>Contact HR for changes</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
                 ) : (
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}>
@@ -306,15 +324,6 @@ export default function Profile() {
                 )}
               </CardHeader>
               <CardContent className="space-y-6">
-                {isLocked && (
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm flex items-center gap-2 mb-4">
-                    <CheckCircle2 className="w-4 h-4" />
-                    {isTimeLocked
-                      ? "Profile editing is disabled 48 hours after your joining date. Contact HR for any changes."
-                      : "Your onboarding profile has been approved and locked. Contact HR for any changes."
-                    }
-                  </div>
-                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
@@ -414,16 +423,10 @@ export default function Profile() {
                 {/* Custom Fields in Profile */}
                 {Object.keys(formData.custom_fields || {}).length > 0 && (
                   <>
-                    <Separator />
-                    <div className="space-y-6 pt-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm border border-primary/20">
-                          <Info className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <Label className="text-base font-bold tracking-tight">Additional Information</Label>
-                          <p className="text-xs text-muted-foreground">Extra details and custom attributes</p>
-                        </div>
+                    <div className="space-y-4 pt-4 border-t">
+                      <div className="flex items-center gap-2">
+                        <Info className="w-4 h-4 text-primary" />
+                        <Label className="text-sm font-bold">Additional Information</Label>
                       </div>
 
                       {/* Explicit Field for Experience Letter */}
@@ -542,7 +545,8 @@ export default function Profile() {
                   </div>
                 </div>
 
-                <Separator />
+                {isAdmin ? null : <Separator />}
+
 
                 <div className="p-6 rounded-lg gradient-primary text-white">
                   <div className="flex items-center justify-between">

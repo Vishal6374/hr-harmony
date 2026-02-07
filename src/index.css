@@ -63,6 +63,10 @@ All colors MUST be HSL.
     --sidebar-border: 220 13% 91%;
 
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    --success: 142.1 76.2% 36.3%;
+    --warning: 37.9 92.1% 50.2%;
+    --info: 199.1 88.7% 48.4%;
   }
 
   .dark {
@@ -101,6 +105,10 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    --success: 142.1 70.6% 45.3%;
+    --warning: 47.9 95.8% 53.1%;
+    --info: 217.2 91.2% 59.8%;
   }
 }
 
