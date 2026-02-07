@@ -142,7 +142,7 @@ export default function SystemCustomization() {
                                             name="company_name"
                                             value={formData.company_name || ""}
                                             onChange={handleChange}
-                                            placeholder="e.g. Acme Corp"
+                                            placeholder="e.g. Catalyr Corp"
                                             className="h-11 rounded-xl border-muted-foreground/20 focus-visible:ring-primary/20"
                                         />
                                     </div>
@@ -153,7 +153,7 @@ export default function SystemCustomization() {
                                             name="site_title"
                                             value={formData.site_title || ""}
                                             onChange={handleChange}
-                                            placeholder="e.g. Acme HRM"
+                                            placeholder="e.g. Catalyr HRM"
                                             className="h-11 rounded-xl border-muted-foreground/20 focus-visible:ring-primary/20"
                                         />
                                     </div>
