@@ -253,7 +253,7 @@ export default function Dashboard() {
               </Card>
 
               <Card className="lg:col-span-1 shadow-sm border">
-                <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2 font-bold text-blue-600"><Video className="w-4 h-4" />Meetings</CardTitle></CardHeader>
+                <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2 font-bold "><Video className="w-4 h-4" />Meetings</CardTitle></CardHeader>
                 <CardContent>
                   {upcomingMeetings.length > 0 ? (
                     <div className="space-y-3">
@@ -403,15 +403,15 @@ export default function Dashboard() {
 
 function MetricCard({ title, value, icon: Icon, color, bgColor }: any) {
   return (
-    <Card className="border shadow-sm">
-      <CardContent className="pt-4 px-4 pb-4">
-        <div className="flex items-center gap-3">
-          <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", bgColor)}>
-            <Icon className={cn("w-5 h-5", color)} />
+    <Card className="border shadow-none bg-muted/20">
+      <CardContent className="p-3 flex flex-col justify-center min-h-[70px]">
+        <div className="flex items-center gap-2.5">
+          <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", bgColor)}>
+            <Icon className={cn("w-4 h-4", color)} />
           </div>
           <div className="min-w-0">
-            <p className="text-xl sm:text-2xl font-black leading-none truncate">{value}</p>
-            <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mt-1 truncate">{title}</p>
+            <p className="text-xl sm:text-2xl font-bold leading-none truncate">{value}</p>
+            <p className="text-[9px] uppercase font-bold tracking-tight text-muted-foreground mt-0.5 truncate">{title}</p>
           </div>
         </div>
       </CardContent>

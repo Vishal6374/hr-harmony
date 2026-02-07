@@ -105,6 +105,10 @@ export const leaveService = {
         api.post(`/leaves/approve/${id}`, { remarks }),
     reject: (id: string, remarks: string) =>
         api.post(`/leaves/reject/${id}`, { remarks }),
+    managerApprove: (id: string, remarks?: string) =>
+        api.post(`/leaves/manager/approve/${id}`, { remarks }),
+    managerReject: (id: string, remarks: string) =>
+        api.post(`/leaves/manager/reject/${id}`, { remarks }),
     cancel: (id: string) =>
         api.post(`/leaves/cancel/${id}`),
     update: (id: string, data: any) =>

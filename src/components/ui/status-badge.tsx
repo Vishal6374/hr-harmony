@@ -20,6 +20,7 @@ const variantStyles: Record<StatusVariant, string> = {
 const statusToVariant: Record<string, StatusVariant> = {
   active: 'success', inactive: 'muted', on_leave: 'warning', terminated: 'destructive',
   pending: 'warning', approved: 'success', rejected: 'destructive', cancelled: 'muted',
+  pending_manager: 'warning', pending_hr: 'info', rejected_by_manager: 'destructive', rejected_by_hr: 'destructive',
   draft: 'muted', processed: 'info', paid: 'success',
   present: 'success', absent: 'destructive', half_day: 'warning', holiday: 'info', weekend: 'muted',
   open: 'warning', in_progress: 'info', resolved: 'success', closed: 'muted',

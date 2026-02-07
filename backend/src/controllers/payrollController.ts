@@ -43,7 +43,7 @@ export const getSalarySlips = async (req: AuthRequest, res: Response): Promise<v
             {
                 association: 'employee',
                 attributes: ['id', 'name', 'email', 'employee_id'],
-                where: req.user?.role === 'hr' ? { role: { [Op.ne]: 'admin' } } : undefined
+                where: req.user?.role === 'hr' ? { id: req.user.id } : undefined
             },
             { association: 'batch' },
         ],

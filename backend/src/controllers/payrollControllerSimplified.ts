@@ -27,7 +27,10 @@ export const getSalarySlips = async (req: AuthRequest, res: Response): Promise<v
     const where: any = {};
 
     // If not HR or Admin, only show own salary slips
-    if (req.user?.role !== 'hr' && req.user?.role !== 'admin') {
+    // HR should only see their own slips in "My Payslips" view, but can query others via employee_id
+    if (req.user?.role === 'hr' && !employee_id) {
+        where.employee_id = req.user.id;
+    } else if (req.user?.role !== 'hr' && req.user?.role !== 'admin') {
         where.employee_id = req.user?.id;
     } else if (employee_id) {
         where.employee_id = employee_id;

@@ -7,7 +7,8 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { CalendarCheck, Clock, UserCheck, UserX, TrendingUp, X, Edit, Settings, AlertCircle, Check, X as XIcon } from 'lucide-react';
-import { format, isSameDay, eachDayOfInterval, startOfMonth, endOfMonth, isWeekend, isBefore, startOfDay } from 'date-fns';
+import { format, isSameDay, eachDayOfInterval, startOfMonth, endOfMonth, isWeekend, isBefore, isAfter, startOfDay } from 'date-fns';
+import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { attendanceService, employeeService, holidayService, regularizationService } from '@/services/apiService';
@@ -168,8 +169,27 @@ export default function Attendance() {
   const todayLogs = logs.filter((log: any) => isSameDay(new Date(log.date), today));
   const presentToday = todayLogs.filter((log: any) => log.status === 'present').length;
   const absentToday = todayLogs.filter((log: any) => log.status === 'absent').length;
-  const myPresentDays = summary?.present || 0;
-  const myAbsentDays = summary?.absent || 0;
+
+  // Local calculation to ensure 100% sync with calendar's visual logic
+  const { myPresentDays, myAbsentDays } = useMemo(() => {
+    let p = 0;
+    let a = 0;
+    daysInMonth.forEach(date => {
+      if (isAfter(date, startOfDay(today))) return;
+      const userLog = logs.find((log: any) => log.employee_id === user?.id && isSameDay(new Date(log.date), date));
+      const holiday = holidays.find((h: any) => isSameDay(new Date(h.date), date));
+      const isWeekendDay = isWeekend(date);
+
+      if (userLog) {
+        if (userLog.status === 'present') p++;
+        else if (userLog.status === 'absent') a++;
+        else if (userLog.status === 'half_day') { p += 0.5; a += 0.5; }
+      } else if (isBefore(date, startOfDay(today))) {
+        if (!isWeekendDay && !holiday) a++;
+      }
+    });
+    return { myPresentDays: p, myAbsentDays: a };
+  }, [daysInMonth, logs, user?.id, holidays, today]);
 
   const attendanceToday = logs.find((log: any) =>
     log.employee_id === user?.id && isSameDay(new Date(log.date), today)
@@ -343,75 +363,67 @@ export default function Attendance() {
         <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {activeTab === 'team' ? (
             <>
-              <Card><CardContent className="pt-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center"><UserCheck className="w-5 h-5 text-green-600" /></div><div><p className="text-xl sm:text-2xl font-bold">{presentToday}</p><p className="text-xs text-muted-foreground">Present Today</p></div></div></CardContent></Card>
-              <Card><CardContent className="pt-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center"><UserX className="w-5 h-5 text-destructive" /></div><div><p className="text-xl sm:text-2xl font-bold">{absentToday}</p><p className="text-xs text-muted-foreground">Absent Today</p></div></div></CardContent></Card>
-              <Card><CardContent className="pt-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center"><CalendarCheck className="w-5 h-5 text-blue-600" /></div><div><p className="text-xl sm:text-2xl font-bold">{todayLogs.filter((log: any) => log.status === 'on_leave').length}</p><p className="text-xs text-muted-foreground">On Leave</p></div></div></CardContent></Card>
-              <Card><CardContent className="pt-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center"><Clock className="w-5 h-5 text-slate-600" /></div><div><p className="text-xl sm:text-2xl font-bold">{format(currentTime, 'hh:mm a')}</p><p className="text-xs text-muted-foreground">Current Time</p></div></div></CardContent></Card>
+              <Card><CardContent className="p-3 flex flex-col items-center justify-center min-h-[85px] text-center"><div className="flex flex-col items-center gap-1"><div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center shrink-0"><UserCheck className="w-5 h-5 text-green-600" /></div><div><p className="text-2xl sm:text-3xl font-bold leading-none">{presentToday}</p><p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mt-1">Present Today</p></div></div></CardContent></Card>
+              <Card><CardContent className="p-3 flex flex-col items-center justify-center min-h-[85px] text-center"><div className="flex flex-col items-center gap-1"><div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center shrink-0"><UserX className="w-5 h-5 text-destructive" /></div><div><p className="text-2xl sm:text-3xl font-bold leading-none">{absentToday}</p><p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mt-1">Absent Today</p></div></div></CardContent></Card>
+              <Card><CardContent className="p-3 flex flex-col items-center justify-center min-h-[85px] text-center"><div className="flex flex-col items-center gap-1"><div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center shrink-0"><CalendarCheck className="w-5 h-5 text-blue-600" /></div><div><p className="text-2xl sm:text-3xl font-bold leading-none">{todayLogs.filter((log: any) => log.status === 'on_leave').length}</p><p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mt-1">On Leave</p></div></div></CardContent></Card>
+              <Card><CardContent className="p-3 flex flex-col items-center justify-center min-h-[85px] text-center"><div className="flex flex-col items-center gap-1"><div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center shrink-0"><Clock className="w-5 h-5 text-slate-600" /></div><div><p className="text-2xl sm:text-3xl font-bold leading-none">{format(currentTime, 'hh:mm')}</p><p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mt-1">Current Time</p></div></div></CardContent></Card>
             </>
           ) : (
             <>
-              <Card className={cn("col-span-full lg:col-span-2 border-l-4 shadow-lg overflow-hidden", attendanceToday?.status === 'present' ? "border-l-green-500 bg-gradient-to-br from-green-50 via-white to-white" : "border-l-primary bg-gradient-to-br from-primary/5 via-white to-white")}>
-                <CardContent className="pt-6 pb-6">
-                  <div className="flex flex-col items-center gap-4">
+              <Card className={cn("col-span-full sm:col-span-2 lg:col-span-1 border-l-4 shadow-sm overflow-hidden", attendanceToday?.status === 'present' ? "border-l-green-500 bg-gradient-to-br from-green-50 via-white to-white" : "border-l-primary bg-gradient-to-br from-primary/5 via-white to-white")}>
+                <CardContent className="p-3">
+                  <div className="flex flex-col items-center gap-2">
                     <div className="text-center">
-                      <p className="text-4xl sm:text-5xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">{format(currentTime, 'hh:mm:ss a')}</p>
-                      <p className="text-sm sm:text-base text-muted-foreground mt-2">{format(currentTime, 'EEEE, MMMM d, yyyy')}</p>
+                      <p className="text-xl sm:text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent leading-none">{format(currentTime, 'hh:mm:ss a')}</p>
+                      <p className="text-[9px] text-muted-foreground mt-1 font-medium">{format(currentTime, 'EEEE, dd MMM yyyy')}</p>
                     </div>
                     {attendanceToday ? (
-                      <div className="flex flex-col items-center gap-3 w-full">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
-                          <p className="text-lg font-semibold text-green-600">Clocked In</p>
+                      <div className="flex flex-col items-center gap-1.5 w-full">
+                        <div className="flex items-center gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                          <p className="text-[10px] font-semibold text-green-600 uppercase tracking-tight">Clocked In</p>
                         </div>
-                        {attendanceToday.check_in && (
-                          <div className="text-center p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-green-200 w-full shadow-sm">
-                            <p className="text-xs text-muted-foreground">Clock In Time</p>
-                            <p className="text-2xl sm:text-xl font-bold text-green-600">{format(new Date(attendanceToday.check_in), 'hh:mm:ss a')}</p>
-                          </div>
-                        )}
-                        {attendanceToday.check_out && (
-                          <div className="text-center p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-red-200 w-full shadow-sm">
-                            <p className="text-xs text-muted-foreground">Clock Out Time</p>
-                            <p className="text-2xl sm:text-xl font-bold text-red-600">{format(new Date(attendanceToday.check_out), 'hh:mm:ss a')}</p>
-                          </div>
-                        )}
+                        <div className="grid grid-cols-2 gap-1.5 w-full">
+                          {attendanceToday.check_in && (
+                            <div className="text-center p-1.5 bg-white/80 backdrop-blur-sm rounded-lg border border-green-100 shadow-sm">
+                              <p className="text-[8px] text-muted-foreground leading-none">In</p>
+                              <p className="text-xs font-bold text-green-600 mt-0.5">{format(new Date(attendanceToday.check_in), 'hh:mm a')}</p>
+                            </div>
+                          )}
+                          {attendanceToday.check_out && (
+                            <div className="text-center p-1.5 bg-white/80 backdrop-blur-sm rounded-lg border border-red-100 shadow-sm">
+                              <p className="text-[8px] text-muted-foreground leading-none">Out</p>
+                              <p className="text-xs font-bold text-red-600 mt-0.5">{format(new Date(attendanceToday.check_out), 'hh:mm a')}</p>
+                            </div>
+                          )}
+                        </div>
                         {!attendanceToday.check_out && (
                           settings?.allow_self_clock_in ? (
-                            <Button variant="destructive" className="w-full h-12 text-base sm:text-lg font-semibold shadow-lg hover:shadow-xl transition-all" onClick={() => markAttendanceMutation.mutate({ date: format(new Date(), 'yyyy-MM-dd'), check_out: new Date().toISOString() })} disabled={markAttendanceMutation.isPending}>
-                              <Clock className="w-4 h-4 mr-2" />
-                              {markAttendanceMutation.isPending ? (
-                                <span className="flex items-center gap-2">
-                                  <Loader size="small" variant="white" />
-                                  Processing...
-                                </span>
-                              ) : 'Clock Out'}
+                            <Button variant="destructive" size="sm" className="w-full h-8 text-[10px] font-bold shadow-sm hover:shadow-md transition-all uppercase" onClick={() => markAttendanceMutation.mutate({ date: format(new Date(), 'yyyy-MM-dd'), check_out: new Date().toISOString() })} disabled={markAttendanceMutation.isPending}>
+                              <Clock className="w-3 h-3 mr-1" />
+                              {markAttendanceMutation.isPending ? 'Processing' : 'Clock Out'}
                             </Button>
                           ) : (
-                            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm text-center">
-                              Self clock-out is disabled. Please contact HR.
+                            <div className="p-1 px-2 bg-amber-50 border border-amber-100 rounded text-amber-700 text-[8px] text-center font-bold uppercase">
+                              Clock-out disabled
                             </div>
                           )
                         )}
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center gap-3 w-full">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-slate-400" />
-                          <p className="text-lg font-semibold text-muted-foreground">Not Clocked In</p>
+                      <div className="flex flex-col items-center gap-2 w-full">
+                        <div className="flex items-center gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">Not Clocked In</p>
                         </div>
                         {settings?.allow_self_clock_in ? (
-                          <Button className="w-full h-12 text-base sm:text-lg font-semibold shadow-lg hover:shadow-xl transition-all" onClick={() => markAttendanceMutation.mutate({ status: 'present', date: format(new Date(), 'yyyy-MM-dd'), check_in: new Date().toISOString() })} disabled={markAttendanceMutation.isPending}>
-                            <UserCheck className="w-5 h-5 mr-2" />
-                            {markAttendanceMutation.isPending ? (
-                              <span className="flex items-center gap-2">
-                                <Loader size="small" variant="white" />
-                                Clocking In...
-                              </span>
-                            ) : 'Clock In'}
+                          <Button size="sm" className="w-full h-8 text-[10px] font-bold shadow-sm hover:shadow-md transition-all uppercase" onClick={() => markAttendanceMutation.mutate({ status: 'present', date: format(new Date(), 'yyyy-MM-dd'), check_in: new Date().toISOString() })} disabled={markAttendanceMutation.isPending}>
+                            <UserCheck className="w-3.5 h-3.5 mr-1" />
+                            {markAttendanceMutation.isPending ? 'Working...' : 'Clock In'}
                           </Button>
                         ) : (
-                          <div className="p-4 bg-muted border rounded-xl text-muted-foreground text-sm text-center w-full">
-                            Self clock-in is currently disabled by HR.
+                          <div className="p-1.5 bg-muted border rounded text-muted-foreground text-[8px] font-bold uppercase text-center w-full">
+                            Clock-in disabled
                           </div>
                         )}
                       </div>
@@ -419,9 +431,9 @@ export default function Attendance() {
                   </div>
                 </CardContent>
               </Card>
-              <Card className="hover:shadow-md transition-shadow"><CardContent className="pt-4"><div className="flex items-center gap-3"><div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center"><CalendarCheck className="w-6 h-6 text-success" /></div><div><p className="text-xl sm:text-2xl font-bold text-success">{myPresentDays}</p><p className="text-xs text-muted-foreground">Present Days</p></div></div></CardContent></Card>
-              <Card className="hover:shadow-md transition-shadow"><CardContent className="pt-4"><div className="flex items-center gap-3"><div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center"><X className="w-6 h-6 text-destructive" /></div><div><p className="text-xl sm:text-2xl font-bold text-destructive">{myAbsentDays}</p><p className="text-xs text-muted-foreground">Absent Days</p></div></div></CardContent></Card>
-              <Card className="hover:shadow-md transition-shadow"><CardContent className="pt-4"><div className="flex items-center gap-3"><div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center"><TrendingUp className="w-6 h-6 text-primary" /></div><div><p className="text-xl sm:text-2xl font-bold">{Math.round((myPresentDays / (myPresentDays + myAbsentDays || 1)) * 100)}%</p><p className="text-xs text-muted-foreground">Attendance Rate</p></div></div></CardContent></Card>
+              <Card className="hover:shadow-sm transition-shadow"><CardContent className="p-3 flex flex-col items-center justify-center min-h-[85px] text-center"><div className="flex flex-col items-center gap-1"><div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center shrink-0"><CalendarCheck className="w-5 h-5 text-green-600" /></div><div><p className="text-xl sm:text-2xl font-bold text-green-600 leading-none">{myPresentDays}</p><p className="text-[9px] uppercase font-bold tracking-tight text-muted-foreground mt-1">Present Days</p></div></div></CardContent></Card>
+              <Card className="hover:shadow-sm transition-shadow"><CardContent className="p-3 flex flex-col items-center justify-center min-h-[85px] text-center"><div className="flex flex-col items-center gap-1"><div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center shrink-0"><X className="w-5 h-5 text-destructive" /></div><div><p className="text-xl sm:text-2xl font-bold text-destructive leading-none">{myAbsentDays}</p><p className="text-[9px] uppercase font-bold tracking-tight text-muted-foreground mt-1">Absent Days</p></div></div></CardContent></Card>
+              <Card className="hover:shadow-sm transition-shadow"><CardContent className="p-3 flex flex-col items-center justify-center min-h-[85px] text-center"><div className="flex flex-col items-center gap-1"><div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><TrendingUp className="w-5 h-5 text-primary" /></div><div><p className="text-xl sm:text-2xl font-bold leading-none">{Math.round((myPresentDays / (myPresentDays + myAbsentDays || 1)) * 100)}%</p><p className="text-[9px] uppercase font-bold tracking-tight text-muted-foreground mt-1">Attendance Rate</p></div></div></CardContent></Card>
             </>
           )}
         </div>

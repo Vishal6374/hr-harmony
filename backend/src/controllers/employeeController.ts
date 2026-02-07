@@ -11,9 +11,13 @@ import { upload, getFileUrl } from '../utils/fileUpload';
 
 
 export const getAllEmployees = async (req: AuthRequest, res: Response): Promise<void> => {
-    const { search, department_id, status, page = 1, limit = 50 } = req.query;
+    const { search, department_id, status, reporting_manager_id, page = 1, limit = 50 } = req.query;
 
     const where: any = {};
+
+    if (reporting_manager_id) {
+        where.reporting_manager_id = reporting_manager_id;
+    }
 
     if (search) {
         where[Op.or] = [

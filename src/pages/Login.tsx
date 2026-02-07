@@ -68,15 +68,18 @@ export default function Login() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className="relative z-20 flex items-center gap-3"
+          className="relative z-20"
         >
-          <div className="">
-            <img src={logo} alt="Logo" className="w-8 h-8 object-contain" />
-          </div>
-          <span className="text-2xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-white/70">
-            {companyName}
-          </span>
+          <Link to="/" className="flex items-center gap-3 w-fit">
+            <div className="">
+              <img src={logo} alt="Logo" className="w-8 h-8 object-contain" />
+            </div>
+            <span className="text-2xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-white/70">
+              {companyName}
+            </span>
+          </Link>
         </motion.div>
+
 
         {/* Content */}
         <div className="relative z-20">

@@ -4,7 +4,8 @@ import { Op } from 'sequelize';
 import User from '../models/User';
 import AttendanceLog from '../models/AttendanceLog';
 import { AppError } from '../middleware/errorHandler';
-import { calculateWorkHours, isWeekend } from '../utils/helpers';
+import Holiday from '../models/Holiday';
+import { calculateWorkHours, isWeekend, getDaysInMonth } from '../utils/helpers';
 import { logAudit } from '../utils/auditLogger';
 
 
@@ -383,15 +384,73 @@ export const getAttendanceSummary = async (req: AuthRequest, res: Response): Pro
         },
     });
 
+    const holidays = await Holiday.findAll({
+        where: {
+            date: {
+                [Op.between]: [startDate, endDate],
+            },
+        },
+    });
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    let present = 0;
+    let absent = 0;
+    let half_day = 0;
+    let on_leave = 0;
+    let weekend = 0;
+    let holiday = 0;
+    let total_work_hours = 0;
+
+    const daysCount = getDaysInMonth(Number(year), Number(month));
+    const logsMap = new Map();
+    logs.forEach(l => {
+        const d = new Date(l.date);
+        const key = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+        logsMap.set(key, l);
+    });
+
+    const holidaysSet = new Set();
+    holidays.forEach(h => {
+        const d = new Date(h.date);
+        const key = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+        holidaysSet.add(key);
+    });
+
+    for (let d = 1; d <= daysCount; d++) {
+        const currentBatchDate = new Date(Number(year), Number(month) - 1, d);
+        if (currentBatchDate > today) break;
+
+        const key = `${currentBatchDate.getFullYear()}-${currentBatchDate.getMonth() + 1}-${currentBatchDate.getDate()}`;
+        const log = logsMap.get(key);
+        const isHday = holidaysSet.has(key);
+        const isWday = isWeekend(currentBatchDate);
+
+        if (log) {
+            if (log.status === 'present') present++;
+            else if (log.status === 'absent') absent++;
+            else if (log.status === 'half_day') half_day++;
+            else if (log.status === 'on_leave') on_leave++;
+            else if (log.status === 'weekend') weekend++;
+            else if (log.status === 'holiday') holiday++;
+            total_work_hours += Number(log?.work_hours || 0);
+        } else if (currentBatchDate < today) {
+            if (isHday) holiday++;
+            else if (isWday) weekend++;
+            else absent++;
+        }
+    }
+
     const summary = {
-        total_days: logs.length,
-        present: logs.filter(l => l.status === 'present').length,
-        absent: logs.filter(l => l.status === 'absent').length,
-        half_day: logs.filter(l => l.status === 'half_day').length,
-        on_leave: logs.filter(l => l.status === 'on_leave').length,
-        weekend: logs.filter(l => l.status === 'weekend').length,
-        holiday: logs.filter(l => l.status === 'holiday').length,
-        total_work_hours: logs.reduce((sum, l) => sum + (l.work_hours || 0), 0),
+        total_days: present + absent + half_day + on_leave + weekend + holiday,
+        present,
+        absent,
+        half_day,
+        on_leave,
+        weekend,
+        holiday,
+        total_work_hours,
     };
 
     res.json(summary);

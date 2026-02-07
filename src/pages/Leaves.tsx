@@ -9,10 +9,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LeaveRequest } from '@/types/hrms';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, CalendarDays, Check, X, Clock, Settings, Edit2, Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { Plus, CalendarDays, Check, X, Clock, Settings, Edit2, Trash2, Eye } from 'lucide-react';
+import { format, isWithinInterval } from 'date-fns';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { leaveService, employeeService, leaveLimitService, leaveTypeService } from '@/services/apiService';
+import PendingLeavesSheet from '@/components/leaves/PendingLeavesSheet';
+import LeaveBalanceSheet from '@/components/leaves/LeaveBalanceSheet';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -38,7 +40,10 @@ export default function Leaves() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isPendingSheetOpen, setIsPendingSheetOpen] = useState(false);
+  const [isBalanceSheetOpen, setIsBalanceSheetOpen] = useState(false);
   const [leaveLimits, setLeaveLimits] = useState({ casual_leave: 12, sick_leave: 12, earned_leave: 15 });
+  const [activeTab, setActiveTab] = useState(isHR ? 'team' : 'my-leaves');
 
   const [formData, setFormData] = useState({
     leave_type: 'sick',
@@ -62,14 +67,37 @@ export default function Leaves() {
 
   // Fetch leave requests
   const { data: leaves = [], isLoading: leavesLoading } = useQuery({
-    queryKey: ['leaves', statusFilter],
+    queryKey: ['leaves', statusFilter, activeTab],
     queryFn: async () => {
+      const isManagerView = activeTab === 'team-approvals';
       const { data } = await leaveService.getRequests({
         status: statusFilter !== 'all' ? statusFilter : undefined,
+        view: isManagerView ? 'manager' : undefined
       });
       return data;
     },
   });
+
+  // Check if user is a reporting manager - dual check: subordinates OR assigned requests
+  const { data: subordinates = [] } = useQuery({
+    queryKey: ['subordinates', user?.id],
+    queryFn: async () => {
+      const { data } = await employeeService.getAll({ reporting_manager_id: user?.id });
+      return data.employees || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  const { data: managerRequests = [] } = useQuery({
+    queryKey: ['manager-requests-check', user?.id],
+    queryFn: async () => {
+      const { data } = await leaveService.getRequests({ view: 'manager' });
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const isReportingManager = subordinates.length > 0 || managerRequests.length > 0 || isHR;
 
   // Fetch leave types
   const { data: leaveTypes = [] } = useQuery({
@@ -139,26 +167,7 @@ export default function Leaves() {
     },
   });
 
-  // Fetch leave balances
-  const { data: balances = [] } = useQuery({
-    queryKey: ['leave-balances'],
-    queryFn: async () => {
-      const { data } = await leaveService.getBalances();
-      return data;
-    },
-  });
-
-  // Fetch employees for HR view
-  const { data: employees = [] } = useQuery({
-    queryKey: ['employees'],
-    queryFn: async () => {
-      const { data } = await employeeService.getAll({ status: 'active' });
-      return data.employees || [];
-    },
-    enabled: isHR,
-  });
-
-  // Mutations for HR actions
+  // Mutations for HR and Manager actions
   const approveMutation = useMutation({
     mutationFn: ({ id, remarks }: any) => leaveService.approve(id, remarks),
     onSuccess: () => {
@@ -173,6 +182,24 @@ export default function Leaves() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leaves'] });
       toast.success('Leave rejected');
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to reject leave'),
+  });
+
+  const managerApproveMutation = useMutation({
+    mutationFn: ({ id, remarks }: any) => leaveService.managerApprove(id, remarks),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leaves'] });
+      toast.success('Manager approval recorded');
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to approve leave'),
+  });
+
+  const managerRejectMutation = useMutation({
+    mutationFn: ({ id, remarks }: any) => leaveService.managerReject(id, remarks),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leaves'] });
+      toast.success('Leave rejected by manager');
     },
     onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to reject leave'),
   });
@@ -210,6 +237,26 @@ export default function Leaves() {
     },
     onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to delete leave'),
   });
+
+  // Fetch leave balances
+  const { data: balances = [] } = useQuery({
+    queryKey: ['leave-balances'],
+    queryFn: async () => {
+      const { data } = await leaveService.getBalances();
+      return data;
+    },
+  });
+
+  // Fetch employees for HR view
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees'],
+    queryFn: async () => {
+      const { data } = await employeeService.getAll({ status: 'active' });
+      return data.employees || [];
+    },
+    enabled: isHR,
+  });
+
 
   const resetLeaveForm = () => {
     setFormData({ leave_type: 'sick', start_date: '', end_date: '', reason: '' });
@@ -256,6 +303,13 @@ export default function Leaves() {
 
   const handleTypeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (selectedType && (selectedType as any).isStandard) {
+      const typeKey = selectedType.id === 'casual' ? 'casual_leave' : selectedType.id === 'sick' ? 'sick_leave' : 'earned_leave';
+      updateLimitsMutation.mutate({ ...leaveLimits, [typeKey]: typeFormData.default_days_per_year });
+      setIsTypeDialogOpen(false);
+      return;
+    }
+
     if (selectedType) {
       updateTypeMutation.mutate({ id: selectedType.id, data: typeFormData });
     } else {
@@ -330,26 +384,64 @@ export default function Leaves() {
     {
       key: 'actions',
       header: '',
-      cell: (leave) => leave.status === 'pending' ? (
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-success"
-            onClick={() => approveMutation.mutate({ id: leave.id })}
-          >
-            <Check className="w-3 h-3 mr-1" />Approve
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-destructive"
-            onClick={() => rejectMutation.mutate({ id: leave.id })}
-          >
-            <X className="w-3 h-3 mr-1" />Reject
-          </Button>
-        </div>
-      ) : null,
+      cell: (leave) => {
+        const isPendingHR = leave.status === 'pending_hr' || (leave.status === 'pending' && isHR);
+        const isPendingManager = leave.status === 'pending_manager' && activeTab === 'team-approvals';
+
+        if (isPendingHR && isHR) {
+          return (
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-success border-success/30 hover:bg-success/10"
+                onClick={() => approveMutation.mutate({ id: leave.id })}
+              >
+                <Check className="w-3 h-3 mr-1" />Approve
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                onClick={() => {
+                  const remarks = prompt("Enter rejection remarks:");
+                  if (remarks) rejectMutation.mutate({ id: leave.id, remarks });
+                }}
+              >
+                <X className="w-3 h-3 mr-1" />Reject
+              </Button>
+            </div>
+          );
+        }
+
+        if (isPendingManager) {
+          return (
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-success border-success/30 hover:bg-success/10"
+                onClick={() => managerApproveMutation.mutate({ id: leave.id })}
+              >
+                <Check className="w-3 h-3 mr-1" />Manager Approve
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                onClick={() => {
+                  const remarks = prompt("Enter rejection remarks:");
+                  if (remarks) managerRejectMutation.mutate({ id: leave.id, remarks });
+                }}
+              >
+                <X className="w-3 h-3 mr-1" />Reject
+              </Button>
+            </div>
+          );
+        }
+
+        return null;
+      },
     },
   ];
 
@@ -366,7 +458,20 @@ export default function Leaves() {
       ),
     },
     { key: 'reason', header: 'Reason', cell: (leave) => <p className="text-sm text-muted-foreground">{leave.reason}</p> },
-    { key: 'status', header: 'Status', cell: (leave) => <StatusBadge status={leave.status} /> },
+    {
+      key: 'status',
+      header: 'Status',
+      cell: (leave: any) => (
+        <div className="space-y-1">
+          <StatusBadge status={leave.status} />
+          {(leave.status === 'rejected_by_manager' || leave.status === 'rejected_by_hr' || leave.status === 'rejected') && (leave.manager_remarks || leave.hr_remarks || leave.remarks) && (
+            <p className="text-[10px] text-destructive font-medium italic max-w-[150px] line-clamp-1">
+              Note: {leave.manager_remarks || leave.hr_remarks || leave.remarks}
+            </p>
+          )}
+        </div>
+      )
+    },
     {
       key: 'actions',
       header: '',
@@ -383,7 +488,7 @@ export default function Leaves() {
     },
   ];
 
-  const typeColumns: Column<LeaveType>[] = [
+  const typeColumns: Column<any>[] = [
     { key: 'name', header: 'Name', cell: (type) => <span className="font-bold text-primary">{type.name}</span> },
     {
       key: 'is_paid',
@@ -401,14 +506,23 @@ export default function Leaves() {
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditType(type)}>
             <Edit2 className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => {
-            if (confirm('Delete this leave type?')) deleteTypeMutation.mutate(type.id);
-          }}>
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          {!type.isStandard && (
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => {
+              if (confirm('Delete this leave type?')) deleteTypeMutation.mutate(type.id);
+            }}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
         </div>
       )
     }
+  ];
+
+  const allCategories = [
+    { id: 'casual', name: 'Casual Leave', default_days_per_year: leaveLimits.casual_leave, is_paid: true, status: 'active', isStandard: true, description: 'Standard annual casual leave' },
+    { id: 'sick', name: 'Sick Leave', default_days_per_year: leaveLimits.sick_leave, is_paid: true, status: 'active', isStandard: true, description: 'Standard annual sick leave' },
+    { id: 'earned', name: 'Earned Leave', default_days_per_year: leaveLimits.earned_leave, is_paid: true, status: 'active', isStandard: true, description: 'Standard annual earned leave' },
+    ...leaveTypes
   ];
 
   return (
@@ -416,10 +530,11 @@ export default function Leaves() {
       <div className="space-y-4 sm:space-y-6 animate-fade-in">
         <PageHeader title="Leaves" description={isHR ? 'Manage employee leave requests' : 'Apply and track your leaves'} />
         {isHR ? (
-          <Tabs defaultValue="team" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="flex items-center justify-between mb-6">
               <TabsList>
                 <TabsTrigger value="team">Team Requests</TabsTrigger>
+                {isReportingManager && <TabsTrigger value="team-approvals">Team Approvals</TabsTrigger>}
                 <TabsTrigger value="my-leaves">My Leaves</TabsTrigger>
               </TabsList>
               <div className="flex gap-2">
@@ -439,11 +554,68 @@ export default function Leaves() {
             </div>
 
             <TabsContent value="team" className="space-y-6">
-              <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <Card><CardContent className="pt-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center"><Clock className="w-5 h-5 text-warning" /></div><div><p className="text-xl sm:text-2xl font-bold">{leaves.filter((l: any) => l.status === 'pending').length}</p><p className="text-xs text-muted-foreground">Pending</p></div></div></CardContent></Card>
-                <Card><CardContent className="pt-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center"><Check className="w-5 h-5 text-success" /></div><div><p className="text-xl sm:text-2xl font-bold">{leaves.filter((l: any) => l.status === 'approved').length}</p><p className="text-xs text-muted-foreground">Approved</p></div></div></CardContent></Card>
-                <Card><CardContent className="pt-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center"><X className="w-5 h-5 text-destructive" /></div><div><p className="text-xl sm:text-2xl font-bold">{leaves.filter((l: any) => l.status === 'rejected').length}</p><p className="text-xs text-muted-foreground">Rejected</p></div></div></CardContent></Card>
-                <Card><CardContent className="pt-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-info/10 flex items-center justify-center"><Clock className="w-5 h-5 text-info" /></div><div><p className="text-xl sm:text-2xl font-bold">{leaves.filter((l: any) => l.status === 'approved' && new Date(l.start_date) <= new Date() && new Date(l.end_date) >= new Date()).length}</p><p className="text-xs text-muted-foreground">On Leave Now</p></div></div></CardContent></Card>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card
+                  className="cursor-pointer hover:shadow-md transition-all border-warning/30 bg-warning/5"
+                  onClick={() => setIsPendingSheetOpen(true)}
+                >
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-warning/20 flex items-center justify-center">
+                          <Clock className="w-6 h-6 text-warning" />
+                        </div>
+                        <div>
+                          <p className="text-3xl font-black text-warning">
+                            {leaves.filter((l: any) => l.status === 'pending' || l.status === 'pending_hr').length}
+                          </p>
+                          <p className="text-sm font-semibold text-warning/80">Pending Action</p>
+                        </div>
+                      </div>
+                      <div className="bg-warning/20 px-3 py-1 rounded-full text-xs font-bold text-warning uppercase tracking-wider">
+                        Quick View
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-success/30 bg-success/5">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-success/20 flex items-center justify-center">
+                        <Check className="w-6 h-6 text-success" />
+                      </div>
+                      <div>
+                        <p className="text-3xl font-black text-success">
+                          {leaves.filter((l: any) => l.status === 'approved').length}
+                        </p>
+                        <p className="text-sm font-semibold text-success/80">Approved Leaves</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-info/30 bg-info/5">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-info/20 flex items-center justify-center">
+                        <Clock className="w-6 h-6 text-info" />
+                      </div>
+                      <div>
+                        <p className="text-3xl font-black text-info">
+                          {leaves.filter((l: any) =>
+                            l.status === 'approved' &&
+                            isWithinInterval(new Date(), {
+                              start: new Date(l.start_date),
+                              end: new Date(l.end_date)
+                            })
+                          ).length}
+                        </p>
+                        <p className="text-sm font-semibold text-info/80">Current Active Leaves</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
 
               <div className="flex items-center justify-between">
@@ -454,7 +626,8 @@ export default function Leaves() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="pending_hr">Pending HR</SelectItem>
+                    <SelectItem value="pending_manager">Pending Manager</SelectItem>
                     <SelectItem value="approved">Approved</SelectItem>
                     <SelectItem value="rejected">Rejected</SelectItem>
                   </SelectContent>
@@ -465,7 +638,16 @@ export default function Leaves() {
                 <CardContent className="p-0">
                   <DataTable
                     columns={hrColumns}
-                    data={statusFilter === 'all' ? leaves : leaves.filter((l: any) => l.status === statusFilter)}
+                    data={
+                      statusFilter === 'all'
+                        ? leaves
+                        : leaves.filter((l: any) => {
+                          if (statusFilter === 'rejected') {
+                            return l.status === 'rejected' || l.status === 'rejected_by_manager' || l.status === 'rejected_by_hr';
+                          }
+                          return l.status === statusFilter;
+                        })
+                    }
                     keyExtractor={(leave: any) => leave.id}
                     emptyMessage="No leave requests found"
                   />
@@ -473,25 +655,39 @@ export default function Leaves() {
               </Card>
             </TabsContent>
 
+            {isReportingManager && (
+              <TabsContent value="team-approvals" className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium">Requests Pending My Approval</h3>
+                </div>
+                <Card className="overflow-hidden">
+                  <CardContent className="p-0">
+                    <DataTable
+                      columns={hrColumns}
+                      data={leaves}
+                      keyExtractor={(leave: any) => leave.id}
+                      emptyMessage="No team requests found"
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+
             <TabsContent value="my-leaves" className="space-y-6">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                {myBalances.map((balance: any) => (
-                  <Card key={balance.leave_type}>
-                    <CardContent className="pt-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-muted-foreground capitalize">{balance.leave_type}</p>
-                          <p className="text-xl sm:text-2xl font-bold">{balance.remaining}</p>
-                          <p className="text-xs text-muted-foreground">of {balance.total} days</p>
-                        </div>
-                        <CalendarDays className="w-8 h-8 text-primary/20" />
-                      </div>
-                      <div className="mt-3 w-full bg-muted rounded-full h-2">
-                        <div className="bg-primary h-2 rounded-full" style={{ width: `${(balance.remaining / balance.total) * 100}%` }} />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+              <div className="flex items-center justify-between p-6 bg-primary/5 rounded-2xl border border-primary/10">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center">
+                    <CalendarDays className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-primary">Leave Entitlements</h3>
+                    <p className="text-sm text-primary/70 font-medium">View your annual limits and remaining balances for all leave types.</p>
+                  </div>
+                </div>
+                <Button onClick={() => setIsBalanceSheetOpen(true)} className="gap-2 shadow-lg shadow-primary/20">
+                  <Eye className="w-4 h-4" />
+                  View My Balance
+                </Button>
               </div>
 
               <div className="flex items-center justify-between">
@@ -522,59 +718,94 @@ export default function Leaves() {
             </TabsContent>
           </Tabs>
         ) : (
-          <>
-            <div className="flex justify-end mb-6">
-              <Button onClick={() => setIsDialogOpen(true)}><Plus className="w-4 h-4 mr-2" />Apply Leave</Button>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <div className="flex items-center justify-between mb-6">
+              <TabsList>
+                <TabsTrigger value="my-leaves">My Leaves</TabsTrigger>
+                {isReportingManager && <TabsTrigger value="team-approvals">Team Approvals</TabsTrigger>}
+              </TabsList>
+              <div className="flex gap-2">
+                <Button onClick={() => setIsDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Apply Leave
+                </Button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-              {myBalances.map((balance: any) => (
-                <Card key={balance.leave_type}>
-                  <CardContent className="pt-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground capitalize">{balance.leave_type}</p>
-                        <p className="text-xl sm:text-2xl font-bold">{balance.remaining}</p>
-                        <p className="text-xs text-muted-foreground">of {balance.total} days</p>
-                      </div>
-                      <CalendarDays className="w-8 h-8 text-primary/20" />
-                    </div>
-                    <div className="mt-3 w-full bg-muted rounded-full h-2">
-                      <div className="bg-primary h-2 rounded-full" style={{ width: `${(balance.remaining / balance.total) * 100}%` }} />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <TabsContent value="team-approvals" className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">Requests Pending My Approval</h3>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="pending_manager">Pending My Action</SelectItem>
+                    <SelectItem value="pending_hr">Passed to HR</SelectItem>
+                    <SelectItem value="approved">Final Approved</SelectItem>
+                    <SelectItem value="rejected_by_manager">Rejected by Me</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium">My Leave History</h3>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              <Card className="overflow-hidden">
+                <CardContent className="p-0">
+                  <DataTable
+                    columns={hrColumns}
+                    data={leaves}
+                    keyExtractor={(leave: any) => leave.id}
+                    emptyMessage="No team requests found"
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-            <Card className="overflow-hidden">
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
+            <TabsContent value="my-leaves" className="space-y-6">
+              <div className="flex items-center justify-between p-6 bg-primary/5 rounded-2xl border border-primary/10">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center">
+                    <CalendarDays className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-primary">Leave Entitlements</h3>
+                    <p className="text-sm text-primary/70 font-medium">Detailed view of your annual limits and remaining balances.</p>
+                  </div>
+                </div>
+                <Button onClick={() => setIsBalanceSheetOpen(true)} className="gap-2 shadow-lg shadow-primary/20">
+                  <Eye className="w-4 h-4" />
+                  Check Balance
+                </Button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">My Leave History</h3>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="pending_manager">Pending Manager</SelectItem>
+                    <SelectItem value="pending_hr">Pending HR</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Card className="overflow-hidden">
+                <CardContent className="p-0">
                   <DataTable
                     columns={employeeColumns}
                     data={myLeaves.filter((l: any) => statusFilter === 'all' || l.status === statusFilter)}
                     keyExtractor={(leave: any) => leave.id}
                     emptyMessage="No leave requests found"
                   />
-                </div>
-              </CardContent>
-            </Card>
-          </>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         )}
 
         {/* Apply Leave Dialog */}
@@ -605,18 +836,11 @@ export default function Leaves() {
                 <Select value={formData.leave_type} onValueChange={(val) => setFormData({ ...formData, leave_type: val })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {leaveTypes.filter((t: any) => t.status === 'active').map((type: any) => (
-                      <SelectItem key={type.id} value={type.name.toLowerCase()}>
+                    {allCategories.filter((t: any) => t.status === 'active').map((type: any) => (
+                      <SelectItem key={type.id} value={type.isStandard ? type.id : type.name.toLowerCase()}>
                         {type.name}
                       </SelectItem>
                     ))}
-                    {leaveTypes.filter((t: any) => t.status === 'active').length === 0 && (
-                      <>
-                        <SelectItem value="sick">Sick Leave</SelectItem>
-                        <SelectItem value="earned">Privilege / Earned Leave</SelectItem>
-                        <SelectItem value="casual">Casual Leave</SelectItem>
-                      </>
-                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -654,75 +878,45 @@ export default function Leaves() {
               <DialogDescription>Configure leave policies and categories.</DialogDescription>
             </DialogHeader>
 
-            <Tabs defaultValue="limits" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-4">
-                <TabsTrigger value="limits">Annual Limits</TabsTrigger>
-                <TabsTrigger value="types">Manage Categories</TabsTrigger>
-              </TabsList>
+            <div className="space-y-6 py-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-bold">Manage Leave Categories</h3>
+                  <p className="text-sm text-muted-foreground">Configure limits and types for all leave formats.</p>
+                </div>
+                <Button onClick={() => { resetTypeForm(); setIsTypeDialogOpen(true); }}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add New Category
+                </Button>
+              </div>
 
-              <TabsContent value="limits">
-                <form onSubmit={handleUpdateLimits} className="space-y-4 pt-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="casual">Casual Leave (Days/Year)</Label>
-                    <Input
-                      id="casual"
-                      type="number"
-                      min="0"
-                      value={leaveLimits.casual_leave}
-                      onChange={(e) => setLeaveLimits({ ...leaveLimits, casual_leave: Number(e.target.value) })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="sick">Sick Leave (Days/Year)</Label>
-                    <Input
-                      id="sick"
-                      type="number"
-                      min="0"
-                      value={leaveLimits.sick_leave}
-                      onChange={(e) => setLeaveLimits({ ...leaveLimits, sick_leave: Number(e.target.value) })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="earned">Earned/Privilege Leave (Days/Year)</Label>
-                    <Input
-                      id="earned"
-                      type="number"
-                      min="0"
-                      value={leaveLimits.earned_leave}
-                      onChange={(e) => setLeaveLimits({ ...leaveLimits, earned_leave: Number(e.target.value) })}
-                      required
-                    />
-                  </div>
-                  <DialogFooter className="pt-4">
-                    <Button type="button" variant="outline" onClick={() => setIsSettingsOpen(false)}>Cancel</Button>
-                    <Button type="submit" disabled={updateLimitsMutation.isPending}>
-                      {updateLimitsMutation.isPending ? 'Saving...' : 'Save Limits'}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </TabsContent>
+              <div className="border rounded-xl bg-card overflow-hidden shadow-sm">
+                <DataTable
+                  columns={typeColumns}
+                  data={allCategories}
+                  keyExtractor={(t) => t.id}
+                  emptyMessage="No leave categories found."
+                />
+              </div>
 
-              <TabsContent value="types">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h4 className="text-sm font-medium">Leave Categories</h4>
-                    <Button size="sm" onClick={() => { resetTypeForm(); setIsTypeDialogOpen(true); }}>
-                      <Plus className="w-4 h-4 mr-2" /> Add Type
-                    </Button>
+              <div className="bg-primary/5 p-4 rounded-lg border border-primary/20">
+                <div className="flex gap-3">
+                  <div className="mt-1">
+                    <Settings className="w-5 h-5 text-primary" />
                   </div>
-                  <div className="border rounded-lg">
-                    <DataTable
-                      columns={typeColumns}
-                      data={leaveTypes}
-                      keyExtractor={(t) => t.id}
-                      emptyMessage="No custom types."
-                    />
+                  <div>
+                    <h4 className="font-bold text-sm text-primary">Configuration Tip</h4>
+                    <p className="text-xs text-primary/70 leading-relaxed">
+                      "Standard" categories (Casual, Sick, Earned) define the base annual leave policy. Custom categories can be added for special cases like Maternity, Bereavement, etc.
+                    </p>
                   </div>
                 </div>
-              </TabsContent>
-            </Tabs>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setIsSettingsOpen(false)}>Close</Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
 
@@ -801,6 +995,21 @@ export default function Leaves() {
             </form>
           </DialogContent>
         </Dialog>
+        {/* Pending Leaves Sidebar */}
+        <PendingLeavesSheet
+          leaves={leaves}
+          employees={employees}
+          open={isPendingSheetOpen}
+          onOpenChange={setIsPendingSheetOpen}
+          onApprove={(id) => approveMutation.mutate({ id })}
+          onReject={(id) => rejectMutation.mutate({ id })}
+        />
+        {/* Leave Balance Sidebar */}
+        <LeaveBalanceSheet
+          balances={myBalances}
+          open={isBalanceSheetOpen}
+          onOpenChange={setIsBalanceSheetOpen}
+        />
       </div>
     </MainLayout>
   );

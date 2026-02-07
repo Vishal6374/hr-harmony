@@ -18,16 +18,27 @@ export const getLeaveRequests = async (req: AuthRequest, res: Response): Promise
         // If Admin, show everything
         // If HR, show everyone except Admins (wait, prompt says HR requests by Admin only, so HR should probably see them to manage them?)
         // Let's stick to: HR sees employees, Admin sees everyone.
+        const isManagerRequest = req.query.view === 'manager';
+
         if (req.user?.role === 'admin') {
-            // Admin sees all
+            if (isManagerRequest) {
+                where.manager_id = req.user?.id;
+            }
+            // Admin sees all otherwise
         } else if (req.user?.role === 'hr') {
-            // HR sees employees (but not admins)
-            if (employee_id) {
+            if (isManagerRequest) {
+                where.manager_id = req.user?.id;
+            } else if (employee_id) {
                 where.employee_id = employee_id;
             }
+            // HR sees employees (except admins) handled by include.where
         } else {
-            // Employees see only themselves
-            where.employee_id = req.user?.id;
+            // Employees see only themselves or if they are a manager
+            if (isManagerRequest) {
+                where.manager_id = req.user?.id;
+            } else {
+                where.employee_id = req.user?.id;
+            }
         }
 
         if (status && status !== 'all') {
@@ -63,14 +74,19 @@ export const getLeaveBalances = async (req: AuthRequest, res: Response): Promise
 
         if (!targetEmployeeId) throw new AppError(400, 'Employee ID required');
 
-        // 1. Get Global Limits
+        // 1. Get Global Limits (Standard Types)
         const LeaveLimit = (await import('../models/LeaveLimit')).default;
+        const LeaveType = (await import('../models/LeaveType')).default;
+
         let limits = await LeaveLimit.findOne();
         if (!limits) {
             limits = await LeaveLimit.create({ casual_leave: 12, sick_leave: 12, earned_leave: 15 });
         }
 
-        // 2. Get Existing Key Balances
+        // 2. Fetch all active custom leave types
+        const customTypes = await LeaveType.findAll({ where: { status: 'active' } });
+
+        // 3. Get Existing Key Balances
         const existingBalances = await LeaveBalance.findAll({
             where: {
                 employee_id: targetEmployeeId,
@@ -78,32 +94,34 @@ export const getLeaveBalances = async (req: AuthRequest, res: Response): Promise
             }
         });
 
-        const leaveTypes = [
-            { type: 'casual', limit: limits.casual_leave },
-            { type: 'sick', limit: limits.sick_leave },
-            { type: 'earned', limit: limits.earned_leave }
-        ] as const;
+        // Combine standard and custom types
+        const typesToSync = [
+            { id: 'casual', name: 'casual', limit: limits.casual_leave },
+            { id: 'sick', name: 'sick', limit: limits.sick_leave },
+            { id: 'earned', name: 'earned', limit: limits.earned_leave },
+            ...customTypes.map(ct => ({ id: ct.id, name: ct.name.toLowerCase(), limit: ct.default_days_per_year }))
+        ];
 
-        // 3. Sync Balances
-        for (const { type, limit } of leaveTypes) {
-            let balance = existingBalances.find(b => b.leave_type === type);
+        // 4. Sync Balances
+        for (const type of typesToSync) {
+            let balance = existingBalances.find(b => b.leave_type === type.name);
 
             if (balance) {
                 // Update total limit if changed by HR
-                if (balance.total !== limit) {
-                    balance.total = limit;
-                    balance.remaining = Math.max(0, limit - balance.used);
+                if (balance.total !== type.limit) {
+                    balance.total = type.limit;
+                    balance.remaining = Math.max(0, type.limit - balance.used);
                     await balance.save();
                 }
             } else {
                 // Initialize if missing
                 await LeaveBalance.create({
                     employee_id: targetEmployeeId,
-                    leave_type: type,
+                    leave_type: type.name,
                     year: targetYear,
-                    total: limit,
+                    total: type.limit,
                     used: 0,
-                    remaining: limit,
+                    remaining: type.limit,
                 });
             }
         }
@@ -181,7 +199,24 @@ export const applyLeave = async (req: AuthRequest, res: Response): Promise<void>
             throw new AppError(400, `Insufficient leave balance. Available: ${balance.remaining} days`);
         }
 
-        // Create leave request
+        // Create leave request with multi-level workflow
+        const applicant = await User.findByPk(employeeId);
+        let managerId = applicant?.reporting_manager_id;
+        let initialStatus: any = 'pending';
+
+        if (managerId) {
+            const manager = await User.findByPk(managerId);
+            // If manager is HR or Admin, skip manager approval level
+            if (manager?.role === 'hr' || manager?.role === 'admin') {
+                initialStatus = 'pending_hr';
+            } else {
+                initialStatus = 'pending_manager';
+            }
+        } else {
+            // No manager assigned, goes directly to HR
+            initialStatus = 'pending_hr';
+        }
+
         const leaveRequest = await LeaveRequest.create({
             employee_id: employeeId,
             leave_type,
@@ -189,7 +224,9 @@ export const applyLeave = async (req: AuthRequest, res: Response): Promise<void>
             end_date: endDate,
             days,
             reason,
-            status: 'pending',
+            status: initialStatus,
+            manager_id: managerId,
+            manager_status: managerId ? 'pending' : undefined
         });
 
         res.status(201).json({
@@ -234,7 +271,7 @@ export const approveLeave = async (req: AuthRequest, res: Response): Promise<voi
             throw new AppError(400, 'You cannot approve your own request');
         }
 
-        if (leaveRequest.status !== 'pending') {
+        if (leaveRequest.status !== 'pending' && leaveRequest.status !== 'pending_hr') {
             throw new AppError(400, 'Leave request already processed');
         }
 
@@ -333,7 +370,7 @@ export const rejectLeave = async (req: AuthRequest, res: Response): Promise<void
             throw new AppError(400, 'You cannot reject your own request');
         }
 
-        if (leaveRequest.status !== 'pending') {
+        if (leaveRequest.status !== 'pending' && leaveRequest.status !== 'pending_hr') {
             throw new AppError(400, 'Leave request already processed');
         }
 
@@ -493,5 +530,57 @@ export const deleteLeave = async (req: AuthRequest, res: Response): Promise<void
         } else {
             res.status(500).json({ message: 'Internal server error deleting leave' });
         }
+    }
+};
+export const managerApproveLeave = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const { remarks } = req.body;
+
+        const leaveRequest = await LeaveRequest.findByPk(id as string);
+        if (!leaveRequest) throw new AppError(404, 'Leave request not found');
+
+        if (leaveRequest.manager_id !== req.user?.id) {
+            throw new AppError(403, 'Only assigned reporting manager can approve this level');
+        }
+
+        if (leaveRequest.status !== 'pending_manager') {
+            throw new AppError(400, 'Request is not pending manager approval');
+        }
+
+        leaveRequest.manager_status = 'approved';
+        leaveRequest.manager_remarks = remarks;
+        leaveRequest.manager_approved_at = new Date();
+        leaveRequest.status = 'pending_hr'; // Move to next level
+        await leaveRequest.save();
+
+        res.json({ message: 'Manager approval successful. Pending HR final approval.', leaveRequest });
+    } catch (error) {
+        console.error('Error in managerApproveLeave:', error);
+        res.status(error instanceof AppError ? error.statusCode : 500).json({ message: error instanceof AppError ? error.message : 'Internal error' });
+    }
+};
+
+export const managerRejectLeave = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const { remarks } = req.body;
+
+        const leaveRequest = await LeaveRequest.findByPk(id as string);
+        if (!leaveRequest) throw new AppError(404, 'Leave request not found');
+
+        if (leaveRequest.manager_id !== req.user?.id) {
+            throw new AppError(403, 'Only assigned reporting manager can reject this');
+        }
+
+        leaveRequest.manager_status = 'rejected';
+        leaveRequest.manager_remarks = remarks;
+        leaveRequest.status = 'rejected_by_manager';
+        await leaveRequest.save();
+
+        res.json({ message: 'Leave request rejected by manager', leaveRequest });
+    } catch (error) {
+        console.error('Error in managerRejectLeave:', error);
+        res.status(error instanceof AppError ? error.statusCode : 500).json({ message: error instanceof AppError ? error.message : 'Internal error' });
     }
 };
