@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY as string);
+const resend = new Resend(import.meta.env.VITE_RESEND_API_KEY as string);
 
 export default async function handler(req: any, res: any) {
     // Basic routing for serverless function
